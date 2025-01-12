@@ -1,5 +1,5 @@
-tqdm
-termcolor
-pysocks
-os
-csv
+paramiko==2.11.0
+requests==2.28.2
+beautifulsoup4==4.12.2
+tqdm==4.64.1
+pysocks==1.7.1
