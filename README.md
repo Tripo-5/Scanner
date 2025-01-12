@@ -49,10 +49,12 @@ Directory Structure
 ├── README.md
 ├── main.py
 ├── requirements.txt
+
 ├── ip_ranges/
 │   ├── China/
 │   ├── Iran/
 │   ├── ...
+
 ├── modules/
 │   ├── proxy_handler.py
 │   ├── host_handler.py
@@ -60,12 +62,15 @@ Directory Structure
 │   ├── exploit.py
 │   ├── utils.py
 │   ├── bruteforce.py
+
 ├── proxy_ranges/
 │   ├── Tested/
 │   ├── Untested/
+
 ├── results/
 │   ├── valid_hosts.txt
 │   ├── vulnerable_hosts.txt
+
 ├── wordlists/
 │   ├── ssh_usernames.txt
 │   ├── ssh_passwords.txt
