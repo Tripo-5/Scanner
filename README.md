@@ -17,8 +17,11 @@ Ensure you have Python 3.8+ installed. Install the dependencies listed in the re
 Installation
 
 git clone https://github.com/Tripo-5/Scanner.git
+
 cd Scanner
+
 pip3 install -r requirements.txt
+
 
 Usage
 
