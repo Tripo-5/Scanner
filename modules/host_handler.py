@@ -141,10 +141,6 @@ def load_ip_ranges():
         print(f"[ERROR] CSV processing error: {e}")
     except Exception as e:
         print(f"[ERROR] Failed to process {csv_file_path}: {e}")
-import socket
-from tqdm import tqdm
-
-live_hosts = []
 
 def test_hosts():
     """
