@@ -1,17 +1,16 @@
-from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies, add_proxy_sources
-from modules.host_handler import load_hosts, load_ip_ranges, test_hosts
-from modules.scanner import scan_hosts, show_results, clear_results
-from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
-from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
-from modules.bruteforce import load_wordlists, bruteforce_ssh
 from globals import (
     global_hosts,
-    global_host_selection,
     global_live_hosts,
     global_vulnerable_hosts,
     global_scraped_proxies,
     global_tested_proxies,
 )
+from modules.proxy_handler import load_proxies, test_proxies
+from modules.host_handler import load_hosts, load_ip_ranges, test_hosts
+from modules.scanner import scan_hosts, show_results, clear_results
+from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
+from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
+from modules.bruteforce import load_wordlists, bruteforce_ssh
 import os
 
 def main_menu():
