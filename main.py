@@ -14,7 +14,6 @@ from globals import (
 )
 import os
 
-
 def main_menu():
     global global_hosts, global_live_hosts, global_vulnerable_hosts
     global global_scraped_proxies, global_tested_proxies
@@ -89,7 +88,6 @@ def main_menu():
             break
         else:
             print("[ERROR] Invalid choice. Please select a valid option.")
-
 
 if __name__ == "__main__":
     main_menu()
