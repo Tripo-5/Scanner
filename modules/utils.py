@@ -1,5 +1,6 @@
+from globals import global_hosts, global_live_hosts
 import os
-from main import global_hosts, global_live_hosts  # Import global variables
+
 
 def clear_all_chunks():
     """
@@ -29,6 +30,7 @@ def clear_all_chunks():
                 print(f"[ERROR] Failed to remove {chunk_path}: {e}")
 
     print("[INFO] All chunk files have been cleared.")
+
 
 def split_large_csvs(base_dir, max_lines):
     """
@@ -71,6 +73,7 @@ def split_large_csvs(base_dir, max_lines):
             except Exception as e:
                 print(f"[ERROR] Failed to split {csv_file}: {e}")
 
+
 def ensure_wordlists():
     """
     Ensure wordlists are available in the required directory.
@@ -87,6 +90,7 @@ def ensure_wordlists():
             with open(file_path, "w") as file:
                 file.write("# Add your entries here\n")
             print(f"[INFO] Created placeholder file: {file_path}")
+
 
 def ensure_valid_hosts():
     """
