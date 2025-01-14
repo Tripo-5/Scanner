@@ -73,19 +73,20 @@ def main_menu():
             except ValueError:
                 max_lines = 200
             split_large_csvs(base_dir, max_lines)
-        elif choice == "13":
+        elif choice == "13":  # SSH Bruteforce option
             print("\n[ SSH Bruteforce Selected ]")
-            # Use global_live_hosts as targets
-            global global_live_hosts
-            if not global_live_hosts:
+            if not global_live_hosts:  # Check if live hosts are available
                 print("[ERROR] No valid live hosts found in memory.")
                 continue
-            targets = global_live_hosts
+        
+            targets = global_live_hosts  # Pass live hosts as targets
+        
             # Load wordlists
             usernames, passwords = load_wordlists()
             if not usernames or not passwords:
                 print("[ERROR] Unable to proceed with SSH bruteforce due to missing or empty wordlists.")
                 continue
+        
             # Perform bruteforce
             bruteforce_ssh(targets, usernames, passwords, max_threads=5)
         elif choice == "14":
