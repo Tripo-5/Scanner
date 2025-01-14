@@ -3,6 +3,7 @@ import os
 import ipaddress
 from tqdm import tqdm
 import random
+import csv
 
 def load_hosts():
     """
