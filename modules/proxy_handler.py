@@ -3,6 +3,7 @@ import socks
 import socket
 from tqdm import tqdm
 import os
+import requests
 
 # Create proxy_lists folder if it doesn't exist
 proxy_lists_dir = "proxy_lists"
@@ -34,6 +35,38 @@ def load_proxies():
         global_scraped_proxies = [line.strip().split(":") for line in file if line.strip()]
     print(f"[INFO] Loaded {len(global_scraped_proxies)} proxies from {unchecked_proxies_file}.")
     return global_scraped_proxies
+
+def scrape_proxies():
+    """
+    Scrape proxies from the sources listed in proxy_sources.txt and save them to unchecked_proxies.txt.
+    """
+    if not os.path.exists(proxy_sources_file):
+        print(f"[ERROR] Proxy sources file not found: {proxy_sources_file}")
+        return
+
+    with open(proxy_sources_file, "r") as file:
+        sources = [line.strip() for line in file if line.strip()]
+
+    if not sources:
+        print("[ERROR] No proxy sources found in proxy_sources.txt.")
+        return
+
+    print("[INFO] Scraping proxies from sources...")
+    scraped_proxies = []
+
+    for source in tqdm(sources, desc="Scraping Sources"):
+        try:
+            response = requests.get(source, timeout=10)
+            response.raise_for_status()
+            scraped_proxies.extend(response.text.splitlines())
+        except Exception as e:
+            print(f"[ERROR] Failed to scrape from {source}: {e}")
+
+    with open(unchecked_proxies_file, "a") as file:
+        for proxy in scraped_proxies:
+            file.write(proxy + "\n")
+
+    print(f"[INFO] Scraped {len(scraped_proxies)} proxies and saved to {unchecked_proxies_file}.")
 
 def test_proxies(proxies):
     """
