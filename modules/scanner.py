@@ -1,8 +1,9 @@
-from main import global_live_hosts, global_tested_proxies
+from globals import global_live_hosts, global_tested_proxies
 from tqdm import tqdm
-import random
 import socks
 import socket
+import os
+
 
 def send_tcp_probe(ip, proxy, port=22):
     """
@@ -27,27 +28,24 @@ def send_tcp_probe(ip, proxy, port=22):
     except (socket.timeout, OSError):
         return None
 
-def scan_hosts(hosts, proxies):
-    """
-    Scan a list of hosts using available proxies.
 
-    :param hosts: List of hosts to scan
-    :param proxies: List of proxies to use for scanning
+def scan_hosts():
     """
-    if not hosts:
-        print("[ERROR] No hosts available for scanning.")
+    Scan hosts in global_live_hosts using proxies from global_tested_proxies.
+    """
+    if not global_live_hosts:
+        print("[ERROR] No live hosts available for scanning.")
         return
 
-    if not proxies:
-        print("[ERROR] No proxies available for scanning.")
+    if not global_tested_proxies:
+        print("[ERROR] No tested proxies available for scanning.")
         return
 
-    proxy_cycle = cycle(proxies)  # Cycle through proxies
-
+    proxy_cycle = cycle(global_tested_proxies)  # Cycle through proxies
     print("[INFO] Starting host scan...")
     results = []
 
-    for host in tqdm(hosts, desc="Scanning Hosts"):
+    for host in tqdm(global_live_hosts, desc="Scanning Hosts"):
         proxy = next(proxy_cycle)
         try:
             response = send_tcp_probe(host, proxy)
@@ -63,6 +61,7 @@ def scan_hosts(hosts, proxies):
 
     print(f"[INFO] Scan complete. Results saved to {results_file}.")
 
+
 def show_results():
     """
     Display the scan results.
@@ -76,6 +75,7 @@ def show_results():
         results = file.read()
         print("[INFO] Scan Results:\n")
         print(results)
+
 
 def clear_results():
     """
