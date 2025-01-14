@@ -88,7 +88,7 @@ def main_menu():
                 continue
         
             # Perform bruteforce
-            bruteforce_ssh(targets, usernames, passwords, max_threads=5)
+            bruteforce_ssh(targets, usernames, passwords, max_threads=2)
         elif choice == "14":
             enable_tor()
         elif choice == "15":
