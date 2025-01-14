@@ -1,22 +1,38 @@
-from main import global_scraped_proxies, global_tested_proxies
+from globals import global_scraped_proxies, global_tested_proxies
 import socks
 import socket
 from tqdm import tqdm
+import os
 
+# Create proxy_lists folder if it doesn't exist
+proxy_lists_dir = "proxy_lists"
+if not os.path.exists(proxy_lists_dir):
+    os.makedirs(proxy_lists_dir)
+    print(f"[INFO] Created directory: {proxy_lists_dir}")
+
+unchecked_proxies_file = os.path.join(proxy_lists_dir, "unchecked_proxies.txt")
+checked_proxies_file = os.path.join(proxy_lists_dir, "checked_proxies.txt")
+proxy_sources_file = os.path.join(proxy_lists_dir, "proxy_sources.txt")
+
+# Ensure necessary files exist
+for file_path in [unchecked_proxies_file, checked_proxies_file, proxy_sources_file]:
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            f.write("")
+        print(f"[INFO] Created file: {file_path}")
 
 def load_proxies():
     """
-    Load proxies from a file and store them in the global_scraped_proxies variable.
+    Load proxies from the unchecked proxies file and store them in the global_scraped_proxies variable.
     """
     global global_scraped_proxies
-    file_path = input("Enter the proxy file path: ")
-    if not file_path or not os.path.exists(file_path):
-        print(f"[ERROR] Proxy file not found: {file_path}")
+    if not os.path.exists(unchecked_proxies_file):
+        print(f"[ERROR] Unchecked proxies file not found: {unchecked_proxies_file}")
         return []
 
-    with open(file_path, "r") as file:
+    with open(unchecked_proxies_file, "r") as file:
         global_scraped_proxies = [line.strip().split(":") for line in file if line.strip()]
-    print(f"[INFO] Loaded {len(global_scraped_proxies)} proxies from {file_path}.")
+    print(f"[INFO] Loaded {len(global_scraped_proxies)} proxies from {unchecked_proxies_file}.")
     return global_scraped_proxies
 
 def test_proxies(proxies):
@@ -66,10 +82,27 @@ def test_single_proxy(proxy_host, proxy_port):
 
 def save_working_proxies():
     """
-    Save the working proxies to a file for future use.
+    Save the working proxies to the checked proxies file for future use.
     """
-    file_path = "results/working_proxies.txt"
-    with open(file_path, "w") as file:
+    with open(checked_proxies_file, "w") as file:
         for proxy in global_tested_proxies:
             file.write(":".join(proxy) + "\n")
-    print(f"[INFO] Working proxies saved to {file_path}.")
+    print(f"[INFO] Working proxies saved to {checked_proxies_file}.")
+
+def add_proxy_sources():
+    """
+    Add new proxy sources to the proxy_sources.txt file.
+    """
+    print("[INFO] Adding new proxy sources. Enter URLs (one per line). Type 'done' to finish.")
+    new_sources = []
+    while True:
+        source = input("Enter proxy source URL: ").strip()
+        if source.lower() == "done":
+            break
+        if source:
+            new_sources.append(source)
+
+    with open(proxy_sources_file, "a") as file:
+        for source in new_sources:
+            file.write(source + "\n")
+    print(f"[INFO] Added {len(new_sources)} new proxy sources to {proxy_sources_file}.")
