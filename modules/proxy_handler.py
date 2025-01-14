@@ -4,6 +4,7 @@ import socket
 from tqdm import tqdm
 import os
 import requests
+import csv
 
 # Create proxy_lists folder if it doesn't exist
 proxy_lists_dir = "proxy_lists"
