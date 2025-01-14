@@ -5,7 +5,7 @@ from globals import (
     global_scraped_proxies,
     global_tested_proxies,
 )
-from modules.proxy_handler import load_proxies, test_proxies
+from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies
 from modules.host_handler import load_hosts, load_ip_ranges, test_hosts
 from modules.scanner import scan_hosts, show_results, clear_results
 from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
