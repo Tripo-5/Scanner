@@ -58,20 +58,23 @@ def split_large_csvs(base_dir, max_lines):
 
             try:
                 with open(csv_path, "r") as file:
-                    lines = file.readlines()
+                    reader = csv.reader(file)
+                    lines = list(reader)
 
                 for i in range(0, len(lines), max_lines):
                     chunk = lines[i:i + max_lines]
-                    chunk_filename = f"{os.path.splitext(csv_file)[0]}_Split-Chunk{i // max_lines + 1}.txt"
+                    chunk_filename = f"{os.path.splitext(csv_file)[0]}_Split-Chunk{i // max_lines + 1}.csv"
                     chunk_path = os.path.join(country_dir, chunk_filename)
 
-                    with open(chunk_path, "w") as chunk_file:
-                        chunk_file.writelines(chunk)
+                    with open(chunk_path, "w", newline="") as chunk_file:
+                        writer = csv.writer(chunk_file)
+                        writer.writerows(chunk)
 
                     print(f"[INFO] Created chunk file: {chunk_path}")
 
             except Exception as e:
                 print(f"[ERROR] Failed to split {csv_file}: {e}")
+
 
 
 def ensure_wordlists():
