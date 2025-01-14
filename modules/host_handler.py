@@ -22,7 +22,8 @@ def load_hosts():
 def load_ip_ranges():
     """
     Load IP ranges from CSV files within country-named folders in the ip_ranges directory,
-    expand them into individual IPs, and store them in global_hosts.
+    calculate all IPs within the ranges, and save them to global_hosts.
+    Additionally, save the calculated IPs to a file.
     """
     global global_hosts
 
@@ -75,22 +76,47 @@ def load_ip_ranges():
     selected_file = csv_files[file_choice]
     file_path = os.path.join(country_dir, selected_file)
 
+    # Prepare output directory for calculated IPs
+    ip_addresses_dir = os.path.join(country_dir, "ip_addresses")
+    if not os.path.exists(ip_addresses_dir):
+        os.makedirs(ip_addresses_dir)
+
+    output_file = os.path.join(ip_addresses_dir, f"{selected_country}IPV4List.txt")
+
     # Process the selected file
     all_ips = []
     with open(file_path, "r") as file:
-        for line in file:
-            line = line.strip()
+        reader = csv.reader(file)
+        for line in reader:
+            if len(line) != 2:
+                print(f"[ERROR] Invalid IP range format: {line}")
+                continue
             try:
-                network = ipaddress.ip_network(line, strict=False)
-                all_ips.extend(str(ip) for ip in network.hosts())
+                start_ip = ipaddress.IPv4Address(line[0].strip())
+                end_ip = ipaddress.IPv4Address(line[1].strip())
+
+                if start_ip > end_ip:
+                    print(f"[ERROR] Start IP {start_ip} is greater than End IP {end_ip}.")
+                    continue
+
+                current_ip = start_ip
+                while current_ip <= end_ip:
+                    all_ips.append(str(current_ip))
+                    current_ip += 1
+
             except ValueError:
                 print(f"[ERROR] Invalid IP range: {line}")
 
     random.shuffle(all_ips)  # Shuffle the IP list for randomness
     global_hosts = all_ips
-    print(f"[INFO] Loaded {len(global_hosts)} IPs from {file_path}.")
-    return global_hosts
 
+    # Save the calculated IPs to a file
+    with open(output_file, "w") as output:
+        for ip in global_hosts:
+            output.write(ip + "\n")
+
+    print(f"[INFO] Loaded {len(global_hosts)} IPs from {file_path} and saved to {output_file}.")
+    return global_hosts
 def test_hosts(hosts, proxies):
     """
     Test connectivity to hosts and update global_live_hosts.
