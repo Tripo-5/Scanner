@@ -120,10 +120,10 @@ def load_ip_ranges():
     return global_hosts
 def test_hosts(hosts, proxies):
     """
-    Test connectivity to hosts and update global_live_hosts.
+    Test connectivity to hosts via ping and update global_live_hosts.
 
     :param hosts: List of hosts to test.
-    :param proxies: List of proxies to use for testing.
+    :param proxies: List of proxies to use for testing (not used in ping test).
     :return: List of live hosts.
     """
     global global_live_hosts
@@ -133,15 +133,19 @@ def test_hosts(hosts, proxies):
         print("[ERROR] No hosts to test.")
         return []
 
-    print("[INFO] Testing host connectivity...")
-    for host in tqdm(hosts, desc="Testing Hosts"):
+    print("[INFO] Testing host connectivity via ping...")
+    for host in tqdm(hosts, desc="Pinging Hosts"):
         try:
-            # Replace with actual connectivity logic (e.g., ping or TCP connection test)
-            is_live = True  # Simulated result
-            if is_live:
+            result = subprocess.run(
+                ["ping", "-c", "1", "-W", "2", host],  # Linux/MacOS
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            if result.returncode == 0:
                 global_live_hosts.append(host)
         except Exception as e:
-            print(f"[ERROR] Failed to test host {host}: {e}")
+            print(f"[ERROR] Unexpected error testing host {host}: {e}")
 
     print(f"[INFO] Found {len(global_live_hosts)} live hosts.")
     return global_live_hosts
+
