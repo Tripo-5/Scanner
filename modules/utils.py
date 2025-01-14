@@ -1,24 +1,5 @@
 import os
-import csv
-
-def show_results():
-    if os.path.exists("Banner_checks_complete.txt"):
-        with open("Banner_checks_complete.txt", "r") as file:
-            print(file.read())
-    else:
-        print("[INFO] No results found.")
-
-def clear_results():
-    if os.path.exists("Banner_checks_complete.txt"):
-        os.remove("Banner_checks_complete.txt")
-        print("[INFO] Results cleared.")
-
-def show_valid():
-    if os.path.exists("cracked.txt"):
-        with open("cracked.txt", "r") as file:
-            print(file.read())
-    else:
-        print("[INFO] No valid credentials found.")
+from main import global_hosts, global_live_hosts  # Import global variables
 
 def clear_all_chunks():
     """
@@ -27,18 +8,17 @@ def clear_all_chunks():
     base_dir = "ip_ranges"  # Directory containing the country folders
 
     if not os.path.exists(base_dir):
-        print(f"[ERROR] Directory {base_dir} not found. Please ensure it exists in the project folder.")
+        print(f"[ERROR] Directory {base_dir} not found. Please ensure it exists.")
         return
 
-    # List available countries (subfolders in the base_dir)
     countries = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
     if not countries:
-        print(f"[ERROR] No country directories found in {base_dir}.")
+        print(f"[INFO] No country directories found in {base_dir}.")
         return
 
     for country in countries:
         country_dir = os.path.join(base_dir, country)
-        chunk_files = [f for f in os.listdir(country_dir) if f.endswith(".csv") and "Chunk" in f]
+        chunk_files = [f for f in os.listdir(country_dir) if f.startswith("Split-Chunk") and f.endswith(".txt")]
 
         for chunk_file in chunk_files:
             chunk_path = os.path.join(country_dir, chunk_file)
@@ -48,111 +28,84 @@ def clear_all_chunks():
             except Exception as e:
                 print(f"[ERROR] Failed to remove {chunk_path}: {e}")
 
-    print(f"[INFO] All chunk files have been cleared.")
+    print("[INFO] All chunk files have been cleared.")
 
-def split_large_csvs(base_dir="/SSH/ip_ranges", max_lines=1000):
+def split_large_csvs(base_dir, max_lines):
     """
-    Split large CSV files into smaller chunks, limiting each chunk to `max_lines`.
+    Split large CSV files into smaller chunks based on the maximum number of lines.
 
-    Args:
-        base_dir (str): Base directory containing country subfolders with CSV files.
-        max_lines (int): Maximum number of lines per chunk.
+    :param base_dir: Base directory containing the CSV files.
+    :param max_lines: Maximum number of lines per chunk.
     """
     if not os.path.exists(base_dir):
-        print(f"[ERROR] Directory '{base_dir}' not found.")
+        print(f"[ERROR] Directory {base_dir} not found.")
         return
 
-    # Iterate through each country's folder
-    for country in os.listdir(base_dir):
-        country_dir = os.path.join(base_dir, country)
-        if not os.path.isdir(country_dir):
-            continue
+    countries = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+    if not countries:
+        print(f"[INFO] No country directories found in {base_dir}.")
+        return
 
-        # Find CSV files in the country folder
-        csv_files = [f for f in os.listdir(country_dir) if f.endswith(".csv") and "Chunk" not in f]
-        if not csv_files:
-            print(f"[INFO] No large CSV files to process in '{country_dir}'.")
-            continue
+    for country in countries:
+        country_dir = os.path.join(base_dir, country)
+        csv_files = [f for f in os.listdir(country_dir) if f.endswith(".csv")]
 
         for csv_file in csv_files:
             csv_path = os.path.join(country_dir, csv_file)
-            base_name = os.path.splitext(csv_file)[0]
+            print(f"[INFO] Processing file: {csv_path}")
 
-            # Split the CSV file into chunks
             try:
-                with open(csv_path, 'r') as input_csv:
-                    csv_reader = csv.reader(input_csv)
-                    headers = next(csv_reader, None)  # Capture headers if present
-                    chunk = []
-                    chunk_count = 0
+                with open(csv_path, "r") as file:
+                    lines = file.readlines()
 
-                    for line_num, row in enumerate(csv_reader, start=1):
-                        chunk.append(row)
-                        if line_num % max_lines == 0:
-                            chunk_count += 1
-                            output_file = os.path.join(
-                                country_dir, f"{base_name}Chunk{chunk_count}.csv"
-                            )
-                            write_chunk(output_file, chunk, headers)
-                            chunk = []
+                for i in range(0, len(lines), max_lines):
+                    chunk = lines[i:i + max_lines]
+                    chunk_filename = f"{os.path.splitext(csv_file)[0]}_Split-Chunk{i // max_lines + 1}.txt"
+                    chunk_path = os.path.join(country_dir, chunk_filename)
 
-                    # Write the remaining rows to the last chunk
-                    if chunk:
-                        chunk_count += 1
-                        output_file = os.path.join(
-                            country_dir, f"{base_name}Chunk{chunk_count}.csv"
-                        )
-                        write_chunk(output_file, chunk, headers)
+                    with open(chunk_path, "w") as chunk_file:
+                        chunk_file.writelines(chunk)
 
-                    print(
-                        f"[INFO] Split '{csv_file}' into {chunk_count} chunks in '{country_dir}'."
-                    )
-            except FileNotFoundError:
-                print(f"[ERROR] File '{csv_path}' not found.")
+                    print(f"[INFO] Created chunk file: {chunk_path}")
+
             except Exception as e:
-                print(f"[ERROR] Failed to split '{csv_file}': {e}")
-
-def write_chunk(output_file, chunk, headers=None):
-    """
-    Write a chunk of rows to a CSV file.
-
-    Args:
-        output_file (str): Path to the output chunk file.
-        chunk (list): List of rows to write.
-        headers (list): Optional headers for the CSV file.
-    """
-    try:
-        with open(output_file, 'w', newline='') as chunk_file:
-            csv_writer = csv.writer(chunk_file)
-            if headers:
-                csv_writer.writerow(headers)
-            csv_writer.writerows(chunk)
-        print(f"[INFO] Created chunk: {output_file}")
-    except Exception as e:
-        print(f"[ERROR] Failed to write chunk '{output_file}': {e}")
+                print(f"[ERROR] Failed to split {csv_file}: {e}")
 
 def ensure_wordlists():
-    """Ensure default wordlists exist in the 'wordlists' directory."""
+    """
+    Ensure wordlists are available in the required directory.
+    """
     wordlist_dir = "wordlists"
-    os.makedirs(wordlist_dir, exist_ok=True)
+    if not os.path.exists(wordlist_dir):
+        os.makedirs(wordlist_dir)
+        print(f"[INFO] Created missing directory: {wordlist_dir}")
 
-    username_file = os.path.join(wordlist_dir, "ssh_usernames.txt")
-    password_file = os.path.join(wordlist_dir, "ssh_passwords.txt")
-
-    if not os.path.exists(username_file):
-        print(f"[INFO] Creating default username wordlist at {username_file}.")
-        with open(username_file, "w") as uf:
-            uf.write("root\nadmin\nuser\n")
-
-    if not os.path.exists(password_file):
-        print(f"[INFO] Creating default password wordlist at {password_file}.")
-        with open(password_file, "w") as pf:
-            pf.write("1234\nadmin\npassword\n")
+    required_files = ["usernames.txt", "passwords.txt"]
+    for file_name in required_files:
+        file_path = os.path.join(wordlist_dir, file_name)
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as file:
+                file.write("# Add your entries here\n")
+            print(f"[INFO] Created placeholder file: {file_path}")
 
 def ensure_valid_hosts():
-    """Check if valid hosts exist in 'results/valid_hosts'."""
-    valid_hosts_dir = "results/valid_hosts"
-    if not os.path.exists(valid_hosts_dir) or not any(f.endswith(".txt") for f in os.listdir(valid_hosts_dir)):
-        print("[ERROR] No valid SSH servers found in 'results/valid_hosts'. Please run the scanning process first.")
-        return False
-    return True
+    """
+    Ensure valid hosts are written to a results file.
+    """
+    global global_live_hosts
+
+    if not global_live_hosts:
+        print("[INFO] No live hosts found in memory.")
+        return
+
+    results_dir = "results"
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+        print(f"[INFO] Created missing directory: {results_dir}")
+
+    valid_hosts_file = os.path.join(results_dir, "valid_hosts.txt")
+    with open(valid_hosts_file, "w") as file:
+        for host in global_live_hosts:
+            file.write(f"{host}\n")
+
+    print(f"[INFO] Live hosts saved to {valid_hosts_file}.")
