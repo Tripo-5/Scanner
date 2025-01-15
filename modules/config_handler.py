@@ -9,8 +9,8 @@ default_config = {
     "save_progress": True,
     "enable_reverse_shell": False,
     "listening_port": 4444,
-    "listening_ip": "0.0.0.0",  # Static IP by default
-    "enable_ddns": False,       # Use DDNS
+    "listening_ip": "0.0.0.0",
+    "enable_ddns": False,       # Option to enable DDNS
     "ddns_domain": "",          # DDNS domain name
 }
 
@@ -106,3 +106,21 @@ def configure_settings():
             print("[ERROR] Invalid choice. Please select a valid option.")
 
     save_config(config)
+
+
+def setup_reverse_shell_listener():
+    """
+    Setup the reverse shell listener based on configuration.
+    """
+    config = load_config()
+
+    if config["enable_reverse_shell"]:
+        ip = config["listening_ip"]
+        if config["enable_ddns"] and config["ddns_domain"]:
+            resolved_ip = resolve_ddns(config["ddns_domain"])
+            ip = resolved_ip if resolved_ip else ip
+
+        port = config["listening_port"]
+        print(f"[INFO] Setting up reverse shell listener on {ip}:{port}")
+
+        # Logic for starting the listener (e.g., using socket)
