@@ -14,9 +14,8 @@ from modules.bruteforce import load_wordlists, bruteforce_ssh
 from modules.config_handler import configure_settings
 from modules.shell_generator import generate_msfvenom_shell, encrypt_generated_shell, list_payloads
 from modules.miner_payload import encrypt_all_cryptominers, list_cryptominers
-from modules.command_control import start_listener, c2_interface, start_apache_server
+from modules.command_control import start_listener, c2_interface, start_apache_server, stop_listeners
 import os
-
 
 def main_menu():
     while True:
@@ -134,7 +133,8 @@ def main_menu():
             print("1.) Start Listener")
             print("2.) Command Interface")
             print("3.) Start Apache Server for Cryptominers")
-            print("4.) Return to Main Menu")
+            print("4.) Stop All Listeners")
+            print("5.) Return to Main Menu")
             c2_choice = input("Enter your choice: ")
             if c2_choice == "1":
                 host = input("Enter listener IP (default 0.0.0.0): ") or "0.0.0.0"
@@ -152,10 +152,16 @@ def main_menu():
                     start_apache_server(directory, int(port))
                 except Exception as e:
                     print(f"[ERROR] Failed to start Apache server: {e}")
+            elif c2_choice == "4":
+                stop_listeners()
+            elif c2_choice == "5":
+                continue
+            else:
+                print("[ERROR] Invalid choice.")
         elif choice == "20":
-            print("[INFO] Exiting.")
+            print("[INFO] Exiting. Stopping all listeners and background tasks.")
+            stop_listeners()
             break
-
 
 if __name__ == "__main__":
     main_menu()
