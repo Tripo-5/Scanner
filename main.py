@@ -5,13 +5,15 @@ from globals import (
     global_scraped_proxies,
     global_tested_proxies,
 )
-from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies
+from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies, add_proxy_sources
 from modules.host_handler import load_hosts, load_ip_ranges, test_hosts
 from modules.scanner import scan_hosts, show_results, clear_results
 from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
 from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
 from modules.bruteforce import load_wordlists, bruteforce_ssh
+from modules.config_handler import configure_settings, load_config
 import os
+
 
 def main_menu():
     global global_hosts, global_live_hosts, global_vulnerable_hosts
@@ -34,7 +36,9 @@ def main_menu():
         print("13.) Clear All Chunks")
         print("14.) Split Large CSVs")
         print("15.) SSH Bruteforce")
-        print("16.) Exit")
+        print("16.) Configuration Settings")
+        print("17.) Exit")
+
         choice = input("Enter your choice: ")
 
         if choice == "1":
@@ -83,10 +87,13 @@ def main_menu():
                 continue
             bruteforce_ssh(targets, usernames, passwords, max_threads=5)
         elif choice == "16":
+            configure_settings()
+        elif choice == "17":
             print("[INFO] Exiting.")
             break
         else:
             print("[ERROR] Invalid choice. Please select a valid option.")
+
 
 if __name__ == "__main__":
     main_menu()
