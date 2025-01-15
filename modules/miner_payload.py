@@ -1,5 +1,5 @@
 import os
-from shell_generator import encrypt_shell, generate_aes_key
+from modules.encryption_utils import encrypt_shell, generate_aes_key
 
 CRYPTOMINERS_DIR = "payloads/cryptominers"
 
