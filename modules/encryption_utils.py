@@ -79,3 +79,37 @@ def generate_aes_key():
     key = os.urandom(16)
     print(f"[INFO] AES key generated: {base64.b64encode(key).decode()}")
     return key
+
+# Encrypt Shell File
+def encrypt_shell(file_path, encryption_key):
+    """
+    Encrypt a file using AES and Base64 encoding.
+
+    :param file_path: Path to the file to encrypt.
+    :param encryption_key: AES encryption key.
+    """
+    if not os.path.exists(file_path):
+        print(f"[ERROR] File not found: {file_path}")
+        return None
+
+    encrypted_file_path = f"{file_path}.enc"
+    try:
+        with open(file_path, "rb") as file:
+            data = file.read()
+
+        encrypted_data = aes_encrypt(data, encryption_key)
+        if encrypted_data is None:
+            return None
+
+        encoded_data = base64_encode(encrypted_data)
+        if encoded_data is None:
+            return None
+
+        with open(encrypted_file_path, "wb") as enc_file:
+            enc_file.write(encoded_data)
+
+        print(f"[SUCCESS] Encrypted file saved to: {encrypted_file_path}")
+        return encrypted_file_path
+    except Exception as e:
+        print(f"[ERROR] Failed to encrypt file: {e}")
+        return None
