@@ -125,6 +125,7 @@ tqdm==4.64.1
 pysocks==1.7.1
 cryptography==39.0.1
 pycryptodome==3.16.0
+mysql-connector-python
 
 ---
 
