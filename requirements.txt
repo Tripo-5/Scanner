@@ -6,3 +6,4 @@ pysocks==1.7.1
 termcolor==1.1.0
 mysql-connector-python==9.1.0
 pycryptodome==3.21.0
+mysql-connector-python
