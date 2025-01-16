@@ -4,3 +4,5 @@ beautifulsoup4==4.12.2
 tqdm==4.64.1
 pysocks==1.7.1
 termcolor
+mysql-connector-python
+pycryptodome
