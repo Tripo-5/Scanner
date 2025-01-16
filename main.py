@@ -47,19 +47,15 @@ def main_menu():
         elif choice == "2":
             scrape_proxies()
         elif choice == "3":
-            global global_scraped_proxies
             global_scraped_proxies = load_proxies()
         elif choice == "4":
             global global_tested_proxies
             global_tested_proxies = test_proxies(global_scraped_proxies)
         elif choice == "5":
-            global global_hosts
             global_hosts = load_hosts()
         elif choice == "6":
-            global global_hosts
             global_hosts = load_ip_ranges()
         elif choice == "7":
-            global global_live_hosts
             global_live_hosts = test_hosts(global_hosts, global_tested_proxies)
         elif choice == "8":
             scan_hosts()
@@ -68,7 +64,6 @@ def main_menu():
         elif choice == "10":
             clear_results()
         elif choice == "11":
-            global global_vulnerable_hosts
             global_vulnerable_hosts = identify_vulnerable_hosts(global_live_hosts)
         elif choice == "12":
             exploit_vulnerable_hosts(global_vulnerable_hosts)
