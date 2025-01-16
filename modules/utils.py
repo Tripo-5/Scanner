@@ -1,5 +1,6 @@
 from globals import global_hosts, global_live_hosts
 import os
+import csv
 
 
 def clear_all_chunks():
