@@ -33,6 +33,8 @@ git clone https://github.com/Tripo-5/Scanner.git
 cd Scanner
 pip3 install -r requirements.txt
 
+---
+
 
 ## Usage
 
@@ -40,7 +42,9 @@ Run the tool by executing the main.py script:
 
 python3 main.py
 
-## Menu Options
+---
+
+# Menu Options
 Add Proxy Sources: Add URLs for proxy scraping.
 Scrape Proxies: Scrape proxies from provided sources.
 Load Proxies: Load proxy files or use default untested proxies.
@@ -62,7 +66,10 @@ Manage Cryptominers: Encrypt cryptominer binaries and manage them.
 Command & Control Center: Manage active sessions and listener options.
 Exit: Exit the application.
 
-Directory Structure
+---
+
+
+## Directory Structure
 
 .
 ├── README.md
@@ -96,13 +103,17 @@ Directory Structure
 │   ├── ssh_usernames.txt
 │   ├── ssh_passwords.txt
 
-Wordlists
+---
+
+## Wordlists
 Place your SSH username and password wordlists in the wordlists/ directory:
 
 ssh_usernames.txt: Contains usernames (e.g., root, admin).
 ssh_passwords.txt: Contains passwords (e.g., 123456, password).
 
-Dependencies
+---
+
+## Dependencies
 
 All dependencies are listed in requirements.txt:
 requirements.txt
@@ -115,7 +126,9 @@ pysocks==1.7.1
 cryptography==39.0.1
 pycryptodome==3.16.0
 
-Notes
+---
+
+# Notes
 Ensure appropriate permissions for writing files in directories such as proxy_lists/ and results/.
 This tool is intended for ethical hacking and penetration testing with explicit authorization. Unauthorized use is strictly prohibited. """
 
