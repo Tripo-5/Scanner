@@ -4,6 +4,12 @@ from globals import (
     global_vulnerable_hosts,
     global_scraped_proxies,
     global_tested_proxies,
+    global_active_sessions,
+    global_config,
+    global_generated_payloads,
+    global_error_log,
+    global_scan_stats,
+    global_wordlist_paths,
 )
 from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies, add_proxy_sources
 from modules.host_handler import load_hosts, load_ip_ranges, test_hosts
@@ -47,16 +53,15 @@ def main_menu():
         elif choice == "2":
             scrape_proxies()
         elif choice == "3":
-            global_scraped_proxies = load_proxies()
+            global_scraped_proxies[:] = load_proxies()
         elif choice == "4":
-            global global_tested_proxies
-            global_tested_proxies = test_proxies(global_scraped_proxies)
+            global_tested_proxies[:] = test_proxies(global_scraped_proxies)
         elif choice == "5":
-            global_hosts = load_hosts()
+            global_hosts[:] = load_hosts()
         elif choice == "6":
-            global_hosts = load_ip_ranges()
+            global_hosts[:] = load_ip_ranges()
         elif choice == "7":
-            global_live_hosts = test_hosts(global_hosts, global_tested_proxies)
+            global_live_hosts[:] = test_hosts(global_hosts, global_tested_proxies)
         elif choice == "8":
             scan_hosts()
         elif choice == "9":
@@ -64,7 +69,7 @@ def main_menu():
         elif choice == "10":
             clear_results()
         elif choice == "11":
-            global_vulnerable_hosts = identify_vulnerable_hosts(global_live_hosts)
+            global_vulnerable_hosts[:] = identify_vulnerable_hosts(global_live_hosts)
         elif choice == "12":
             exploit_vulnerable_hosts(global_vulnerable_hosts)
         elif choice == "13":
