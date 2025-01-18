@@ -5,6 +5,8 @@ from tqdm import tqdm
 import random
 import csv
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 def load_hosts():
     """
@@ -241,9 +243,44 @@ def load_ip_ranges():
     print(f"[INFO] Loaded {len(global_hosts)} IPs from {file_path} and saved to {output_file}.")
     return global_hosts
 
+# Lock for thread-safe operations
+lock = threading.Lock()
+
+# Function to test a single host
+def test_single_host(host):
+    """
+    Test connectivity to a single host via hping3.
+
+    :param host: Host to test.
+    """
+    try:
+        # Encode a payload and split into chunks
+        payload = "TestPayload"  # Example payload
+        encoded_payload = payload.encode().hex()  # Hex-encode the payload
+        chunk_size = len(encoded_payload) // 4
+        chunks = [encoded_payload[i:i+chunk_size] for i in range(0, len(encoded_payload), chunk_size)]
+
+        # Send each chunk as a separate packet
+        for chunk in chunks:
+            result = subprocess.run(
+                ["hping3", "-S", host, "-p", "80", "--data", chunk, "-c", "1"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"Chunk failed for host {host}")
+        
+        # If all chunks are sent successfully, add to global_live_hosts
+        with lock:
+            global_live_hosts.append(host)
+
+    except Exception as e:
+        print(f"[ERROR] Unexpected error testing host {host}: {e}")
+
+# Function to test hosts with a thread limit
 def test_hosts(hosts, proxies):
     """
-    Test connectivity to hosts via hping3 and update global_live_hosts.
+    Test connectivity to hosts via hping3 using multithreading with a thread limit.
 
     :param hosts: List of hosts to test.
     :param proxies: List of proxies to use for testing (not used in hping3 test).
@@ -256,29 +293,20 @@ def test_hosts(hosts, proxies):
         print("[ERROR] No hosts to test.")
         return []
 
-    print("[INFO] Testing host connectivity via hping3...")
-    for host in tqdm(hosts, desc="Testing Hosts"):
-        try:
-            # Encode a payload and split into chunks
-            payload = "TestPayload"  # Example payload
-            encoded_payload = payload.encode().hex()  # Hex-encode the payload
-            chunk_size = len(encoded_payload) // 4
-            chunks = [encoded_payload[i:i+chunk_size] for i in range(0, len(encoded_payload), chunk_size)]
-
-            # Send each chunk as a separate packet
-            for chunk in chunks:
-                result = subprocess.run(
-                    ["hping3", "-S", host, "-p", "80", "--data", chunk, "-c", "1"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-                if result.returncode != 0:
-                    raise RuntimeError(f"Chunk failed for host {host}")
-            else:
-                # If all chunks were sent successfully
-                global_live_hosts.append(host)
-        except Exception as e:
-            print(f"[ERROR] Unexpected error testing host {host}: {e}")
+    print("[INFO] Testing host connectivity via hping3 with a thread limit of 12...")
+    
+    # Use ThreadPoolExecutor with a maximum of 12 threads
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        # Submit all host tests as tasks
+        futures = {executor.submit(test_single_host, host): host for host in hosts}
+        
+        # Use tqdm to display progress
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Hosts"):
+            try:
+                future.result()  # Ensure exceptions are raised
+            except Exception as e:
+                host = futures[future]
+                print(f"[ERROR] Error testing host {host}: {e}")
 
     print(f"[INFO] Found {len(global_live_hosts)} live hosts.")
     return global_live_hosts
