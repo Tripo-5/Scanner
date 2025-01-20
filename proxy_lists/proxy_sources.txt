@@ -1,13 +1,10 @@
 https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies.txt
 https://github.com/TheSpeedX/PROXY-List/blob/master/socks5.txt
 https://sockslist.us/
-https://proxy-best.com/free-proxy-list/
-https://proxybros.com/free-proxy-list/socks5/
 https://github.com/proxifly/free-proxy-list
 https://www.socks-proxy.net/
 https://proxyscrape.com/free-proxy-list
 https://github.com/vakhov/fresh-proxy-list
-https://www.vpnside.com/proxy/list/
 https://proxycompass.com/free-proxy/
 https://netnut.io/free-proxy-list/
 https://hide.mn/en/proxy-list/
