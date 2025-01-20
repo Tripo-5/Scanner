@@ -174,7 +174,7 @@ def test_hosts(hosts, proxies):
     print("[INFO] Testing host connectivity via hping3 with a thread limit of 12...")
 
     # Use ThreadPoolExecutor with a maximum of 12 threads
-    with ThreadPoolExecutor(max_workers=12) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         # Submit all host tests as tasks
         futures = {executor.submit(test_single_host, host): host for host in hosts}
 
