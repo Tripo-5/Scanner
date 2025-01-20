@@ -5,6 +5,7 @@ from tqdm import tqdm
 import os
 import requests
 import csv
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Create proxy_lists folder if it doesn't exist
 proxy_lists_dir = "proxy_lists"
@@ -71,7 +72,7 @@ def scrape_proxies():
 
 def test_proxies(proxies):
     """
-    Test the list of proxies and store the working ones in the global_tested_proxies variable.
+    Test the list of proxies concurrently and store the working ones in the global_tested_proxies variable.
 
     :param proxies: List of proxies to test
     :return: List of working proxies
@@ -84,13 +85,22 @@ def test_proxies(proxies):
         return []
 
     print("[INFO] Testing proxies...")
-    for proxy in tqdm(proxies, desc="Testing Proxies"):
+    
+    def test_and_store(proxy):
         try:
             proxy_host, proxy_port = proxy
             if test_single_proxy(proxy_host, int(proxy_port)):
-                global_tested_proxies.append(proxy)
+                return proxy
         except ValueError:
             print(f"[ERROR] Invalid proxy format: {proxy}")
+        return None
+
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        future_to_proxy = {executor.submit(test_and_store, proxy): proxy for proxy in proxies}
+        for future in tqdm(as_completed(future_to_proxy), total=len(proxies), desc="Testing Proxies"):
+            result = future.result()
+            if result:
+                global_tested_proxies.append(result)
 
     print(f"[INFO] {len(global_tested_proxies)} working proxies found.")
     save_working_proxies()
