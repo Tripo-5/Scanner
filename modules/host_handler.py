@@ -7,6 +7,7 @@ import csv
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+from termcolour import coloured
 
 def load_hosts():
     """
@@ -122,10 +123,17 @@ def load_ip_ranges():
     print(f"[INFO] Loaded {len(global_hosts)} IPs from {file_path} and saved to {output_file}.")
     return global_hosts
 
-# Lock for thread-safe operations
-lock = threading.Lock()
+# Global lock for thread-safe operations
+lock = Lock()
+
 # Ensure the results directory exists
 os.makedirs("results", exist_ok=True)
+
+# Counters for progress tracking
+counter_valid = 0
+counter_dead = 0
+counter_total = 0
+counter_remaining = 0
 
 def test_single_host(host):
     """
@@ -133,6 +141,7 @@ def test_single_host(host):
 
     :param host: Host to test.
     """
+    global counter_valid, counter_dead, counter_remaining
     try:
         # Use a simple payload and split it into two chunks
         payload = "TestPayload"  # Example payload
@@ -155,8 +164,18 @@ def test_single_host(host):
             with open("results/live_hosts.txt", "a") as file:
                 file.write(f"{host}\n")
 
+            # Update counters
+            counter_valid += 1
+            counter_remaining -= 1
+
+            # Print live host
+            print(colored(f"[VALID] {host}", "green"))
     except Exception as e:
-        print(f"[ERROR] Unexpected error testing host {host}: {e}")
+        # Handle dead hosts
+        with lock:
+            counter_dead += 1
+            counter_remaining -= 1
+        print(colored(f"[DEAD] {host}", "red"))
 
 def test_hosts(hosts, proxies=None):
     """
@@ -166,18 +185,26 @@ def test_hosts(hosts, proxies=None):
     :param proxies: List of proxies to use for testing (not used in hping3 test).
     :return: List of live hosts.
     """
-    global global_live_hosts
+    global global_live_hosts, counter_valid, counter_dead, counter_remaining, counter_total
     global_live_hosts = []  # Clear previous live hosts
 
     if not hosts:
         print("[ERROR] No hosts to test.")
         return []
 
+    # Initialize counters
+    counter_valid = 0
+    counter_dead = 0
+    counter_total = len(hosts)
+    counter_remaining = len(hosts)
+
     # Clear previous live hosts file
     with open("results/live_hosts.txt", "w") as file:
         pass  # Clear contents by opening in write mode
 
     print("[INFO] Testing host connectivity via hping3 with a thread limit of 12...")
+    print(colored(f"[STATS] Valid (green): {counter_valid} | Dead (red): {counter_dead} | "
+                  f"Remaining (orange): {counter_remaining} | Total (white): {counter_total}", None))
 
     # Use ThreadPoolExecutor with a maximum of 12 threads
     with ThreadPoolExecutor(max_workers=12) as executor:
@@ -190,7 +217,11 @@ def test_hosts(hosts, proxies=None):
                 future.result()  # Ensure exceptions are raised
             except Exception as e:
                 host = futures[future]
-                print(f"[ERROR] Error testing host {host}: {e}")
+                print(colored(f"[ERROR] Error testing host {host}: {e}", "yellow"))
+
+            # Update dynamic stats after each test
+            print(colored(f"[STATS] Valid (green): {counter_valid} | Dead (red): {counter_dead} | "
+                          f"Remaining (orange): {counter_remaining} | Total (white): {counter_total}", None))
 
     print(f"[INFO] Found {len(global_live_hosts)} live hosts.")
     return global_live_hosts
