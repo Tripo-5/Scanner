@@ -6,5 +6,4 @@ https://www.socks-proxy.net/
 https://proxyscrape.com/free-proxy-list
 https://github.com/vakhov/fresh-proxy-list
 https://proxycompass.com/free-proxy/
-https://netnut.io/free-proxy-list/
 https://hide.mn/en/proxy-list/
