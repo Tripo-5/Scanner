@@ -124,8 +124,9 @@ def load_ip_ranges():
 
 # Lock for thread-safe operations
 lock = threading.Lock()
+# Ensure the results directory exists
+os.makedirs("results", exist_ok=True)
 
-# Function to test a single host
 def test_single_host(host):
     """
     Test connectivity to a single host via hping3.
@@ -148,15 +149,16 @@ def test_single_host(host):
             if result.returncode != 0:
                 raise RuntimeError(f"Chunk failed for host {host}")
 
-        # If all chunks are sent successfully, add to global_live_hosts
+        # If all chunks are sent successfully, add to global_live_hosts and save to file
         with lock:
             global_live_hosts.append(host)
+            with open("results/live_hosts.txt", "a") as file:
+                file.write(f"{host}\n")
 
     except Exception as e:
         print(f"[ERROR] Unexpected error testing host {host}: {e}")
 
-# Function to test hosts with a thread limit
-def test_hosts(hosts, proxies):
+def test_hosts(hosts, proxies=None):
     """
     Test connectivity to hosts via hping3 using multithreading with a thread limit.
 
@@ -171,10 +173,14 @@ def test_hosts(hosts, proxies):
         print("[ERROR] No hosts to test.")
         return []
 
+    # Clear previous live hosts file
+    with open("results/live_hosts.txt", "w") as file:
+        pass  # Clear contents by opening in write mode
+
     print("[INFO] Testing host connectivity via hping3 with a thread limit of 12...")
 
     # Use ThreadPoolExecutor with a maximum of 12 threads
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=12) as executor:
         # Submit all host tests as tasks
         futures = {executor.submit(test_single_host, host): host for host in hosts}
 
