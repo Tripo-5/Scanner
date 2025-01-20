@@ -3,6 +3,8 @@ from tqdm import tqdm
 import socks
 import socket
 import os
+import re
+from itertools import cycle
 
 
 def send_tcp_probe(ip, proxy, port=22):
