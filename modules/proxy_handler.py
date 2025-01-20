@@ -6,7 +6,7 @@ import os
 import requests
 import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+import re
 # Create proxy_lists folder if it doesn't exist
 proxy_lists_dir = "proxy_lists"
 if not os.path.exists(proxy_lists_dir):
