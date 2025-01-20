@@ -5,5 +5,4 @@ https://github.com/proxifly/free-proxy-list
 https://www.socks-proxy.net/
 https://proxyscrape.com/free-proxy-list
 https://github.com/vakhov/fresh-proxy-list
-https://proxycompass.com/free-proxy/
 https://hide.mn/en/proxy-list/
