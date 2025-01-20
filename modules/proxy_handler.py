@@ -107,7 +107,7 @@ def test_single_proxy(proxy_host, proxy_port):
     try:
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
-        sock.settimeout(2)  # 2-second timeout for testing
+        sock.settimeout(5)  # 5-second timeout for testing
         sock.connect(("8.8.8.8", 53))  # Connect to Google's public DNS
         sock.close()
         return True
