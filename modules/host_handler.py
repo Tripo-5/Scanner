@@ -133,22 +133,21 @@ def test_single_host(host):
     :param host: Host to test.
     """
     try:
-        # Encode a payload and split into chunks
+        # Use a simple payload and split it into two chunks
         payload = "TestPayload"  # Example payload
-        encoded_payload = payload.encode().hex()  # Hex-encode the payload
-        chunk_size = len(encoded_payload) // 4
-        chunks = [encoded_payload[i:i+chunk_size] for i in range(0, len(encoded_payload), chunk_size)]
+        chunk_size = len(payload) // 2
+        chunks = [payload[i:i + chunk_size] for i in range(0, len(payload), chunk_size)]
 
         # Send each chunk as a separate packet
         for chunk in chunks:
             result = subprocess.run(
-                ["hping3", "-S", host, "-p", "80", "--data", chunk, "-c", "1"],
+                ["hping3", "-S", host, "-p", "22", "--data", chunk, "-c", "1"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
             if result.returncode != 0:
                 raise RuntimeError(f"Chunk failed for host {host}")
-        
+
         # If all chunks are sent successfully, add to global_live_hosts
         with lock:
             global_live_hosts.append(host)
@@ -173,12 +172,12 @@ def test_hosts(hosts, proxies):
         return []
 
     print("[INFO] Testing host connectivity via hping3 with a thread limit of 12...")
-    
+
     # Use ThreadPoolExecutor with a maximum of 12 threads
     with ThreadPoolExecutor(max_workers=12) as executor:
         # Submit all host tests as tasks
         futures = {executor.submit(test_single_host, host): host for host in hosts}
-        
+
         # Use tqdm to display progress
         for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Hosts"):
             try:
