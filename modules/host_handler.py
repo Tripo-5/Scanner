@@ -9,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from termcolour import coloured
 import time
+from threading import Lock
+
 
 def load_hosts():
     """
@@ -140,10 +142,13 @@ counter_remaining = 0
 # Function to update the counters display
 def display_counters():
     print("\033[H\033[J", end="")  # Clear terminal screen
-    print(colored(f"[STATS] Valid (green): {counter_valid} | Dead (red): {counter_dead} | "
-                  f"Remaining (orange): {counter_remaining} | Total (white): {counter_total}", None))
+    print(f"[STATS] "
+          f"{colored(f'Valid: {counter_valid}', 'green')} | "
+          f"{colored(f'Dead: {counter_dead}', 'red')} | "
+          f"{colored(f'Remaining: {counter_remaining}', 'yellow')} | "
+          f"{colored(f'Total: {counter_total}', 'white')}")
 
-def test_single_host(host, min_delay=2, max_delay=4):
+def test_single_host(host, min_delay=1, max_delay=3):
     """
     Test connectivity to a single host via hping3 with random delay.
 
@@ -243,4 +248,3 @@ def test_hosts(hosts, proxies=None):
 
     print(f"[INFO] Found {len(global_live_hosts)} live hosts.")
     return global_live_hosts
-
