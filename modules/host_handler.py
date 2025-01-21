@@ -143,7 +143,7 @@ def display_counters():
     print(colored(f"[STATS] Valid (green): {counter_valid} | Dead (red): {counter_dead} | "
                   f"Remaining (orange): {counter_remaining} | Total (white): {counter_total}", None))
 
-def test_single_host(host, min_delay=1, max_delay=3):
+def test_single_host(host, min_delay=2, max_delay=4):
     """
     Test connectivity to a single host via hping3 with random delay.
 
