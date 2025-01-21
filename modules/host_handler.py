@@ -8,6 +8,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from termcolour import coloured
+import time
 
 def load_hosts():
     """
@@ -123,6 +124,7 @@ def load_ip_ranges():
     print(f"[INFO] Loaded {len(global_hosts)} IPs from {file_path} and saved to {output_file}.")
     return global_hosts
 
+
 # Global lock for thread-safe operations
 lock = Lock()
 
@@ -135,11 +137,19 @@ counter_dead = 0
 counter_total = 0
 counter_remaining = 0
 
-def test_single_host(host):
+# Function to update the counters display
+def display_counters():
+    print("\033[H\033[J", end="")  # Clear terminal screen
+    print(colored(f"[STATS] Valid (green): {counter_valid} | Dead (red): {counter_dead} | "
+                  f"Remaining (orange): {counter_remaining} | Total (white): {counter_total}", None))
+
+def test_single_host(host, min_delay=1, max_delay=3):
     """
-    Test connectivity to a single host via hping3.
+    Test connectivity to a single host via hping3 with random delay.
 
     :param host: Host to test.
+    :param min_delay: Minimum delay between scans (in seconds).
+    :param max_delay: Maximum delay between scans (in seconds).
     """
     global counter_valid, counter_dead, counter_remaining
     try:
@@ -168,18 +178,27 @@ def test_single_host(host):
             counter_valid += 1
             counter_remaining -= 1
 
+            # Update display
+            display_counters()
+
             # Print live host
             print(colored(f"[VALID] {host}", "green"))
+
     except Exception as e:
         # Handle dead hosts
         with lock:
             counter_dead += 1
             counter_remaining -= 1
+            display_counters()
         print(colored(f"[DEAD] {host}", "red"))
+
+    # Introduce random delay between scans
+    delay = random.uniform(min_delay, max_delay)
+    time.sleep(delay)
 
 def test_hosts(hosts, proxies=None):
     """
-    Test connectivity to hosts via hping3 using multithreading with a thread limit.
+    Test connectivity to hosts via hping3 using multithreading with a thread limit and random delays.
 
     :param hosts: List of hosts to test.
     :param proxies: List of proxies to use for testing (not used in hping3 test).
@@ -202,9 +221,9 @@ def test_hosts(hosts, proxies=None):
     with open("results/live_hosts.txt", "w") as file:
         pass  # Clear contents by opening in write mode
 
+    display_counters()
+
     print("[INFO] Testing host connectivity via hping3 with a thread limit of 12...")
-    print(colored(f"[STATS] Valid (green): {counter_valid} | Dead (red): {counter_dead} | "
-                  f"Remaining (orange): {counter_remaining} | Total (white): {counter_total}", None))
 
     # Use ThreadPoolExecutor with a maximum of 12 threads
     with ThreadPoolExecutor(max_workers=12) as executor:
@@ -220,8 +239,8 @@ def test_hosts(hosts, proxies=None):
                 print(colored(f"[ERROR] Error testing host {host}: {e}", "yellow"))
 
             # Update dynamic stats after each test
-            print(colored(f"[STATS] Valid (green): {counter_valid} | Dead (red): {counter_dead} | "
-                          f"Remaining (orange): {counter_remaining} | Total (white): {counter_total}", None))
+            display_counters()
 
     print(f"[INFO] Found {len(global_live_hosts)} live hosts.")
     return global_live_hosts
+
