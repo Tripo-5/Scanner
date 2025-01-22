@@ -7,7 +7,7 @@ import csv
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
-from termcolour import coloured
+from termcolor import colored
 import time
 from threading import Lock
 
