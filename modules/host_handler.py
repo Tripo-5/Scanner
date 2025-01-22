@@ -148,32 +148,39 @@ def display_counters():
           f"{colored(f'Remaining: {counter_remaining}', 'yellow')} | "
           f"{colored(f'Total: {counter_total}', 'white')}")
 
-def test_single_host(host, min_delay=1, max_delay=3):
+from itertools import cycle
+
+def test_single_host(host, proxy=None, min_delay=1, max_delay=3):
     """
-    Test connectivity to a single host via hping3 with random delay.
+    Test connectivity to a single host via hping3 with optional proxy support and random delay.
 
     :param host: Host to test.
+    :param proxy: Proxy to use for the connection (IP:Port format).
     :param min_delay: Minimum delay between scans (in seconds).
     :param max_delay: Maximum delay between scans (in seconds).
     """
     global counter_valid, counter_dead, counter_remaining
     try:
-        # Use a simple payload and split it into two chunks
-        payload = "TestPayload"  # Example payload
-        chunk_size = len(payload) // 2
-        chunks = [payload[i:i + chunk_size] for i in range(0, len(payload), chunk_size)]
+        # Base command for hping3
+        command = ["hping3", "-S", host, "-p", "22", "-c", "1"]
+        
+        # If a proxy is specified, include proxy settings
+        if proxy:
+            proxy_host, proxy_port = proxy.split(":")
+            # This assumes your system or hping3 supports proxies, adjust as needed
+            os.environ["HTTP_PROXY"] = f"http://{proxy_host}:{proxy_port}"
+            os.environ["HTTPS_PROXY"] = f"http://{proxy_host}:{proxy_port}"
 
-        # Send each chunk as a separate packet
-        for chunk in chunks:
-            result = subprocess.run(
-                ["hping3", "-S", host, "-p", "22", "--data", chunk, "-c", "1"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            if result.returncode != 0:
-                raise RuntimeError(f"Chunk failed for host {host}")
+        # Run the command
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"Failed to connect to host {host} using proxy {proxy}")
 
-        # If all chunks are sent successfully, add to global_live_hosts and save to file
+        # If successful, record the host as live
         with lock:
             global_live_hosts.append(host)
             with open("results/live_hosts.txt", "a") as file:
@@ -185,9 +192,7 @@ def test_single_host(host, min_delay=1, max_delay=3):
 
             # Update display
             display_counters()
-
-            # Print live host
-            print(colored(f"[VALID] {host}", "green"))
+            print(colored(f"[VALID] {host} (via proxy {proxy})", "green"))
 
     except Exception as e:
         # Handle dead hosts
@@ -195,18 +200,18 @@ def test_single_host(host, min_delay=1, max_delay=3):
             counter_dead += 1
             counter_remaining -= 1
             display_counters()
-        print(colored(f"[DEAD] {host}", "red"))
+        print(colored(f"[DEAD] {host} (via proxy {proxy}): {e}", "red"))
 
     # Introduce random delay between scans
     delay = random.uniform(min_delay, max_delay)
     time.sleep(delay)
 
-def test_hosts(hosts, proxies=None):
+def test_hosts(hosts, proxies):
     """
-    Test connectivity to hosts via hping3 using multithreading with a thread limit and random delays.
+    Test connectivity to hosts via hping3 using proxies, multithreading, and random delays.
 
     :param hosts: List of hosts to test.
-    :param proxies: List of proxies to use for testing (not used in hping3 test).
+    :param proxies: List of proxies to use for testing.
     :return: List of live hosts.
     """
     global global_live_hosts, counter_valid, counter_dead, counter_remaining, counter_total
@@ -214,6 +219,10 @@ def test_hosts(hosts, proxies=None):
 
     if not hosts:
         print("[ERROR] No hosts to test.")
+        return []
+
+    if not proxies:
+        print("[ERROR] No proxies available for testing.")
         return []
 
     # Initialize counters
@@ -228,12 +237,18 @@ def test_hosts(hosts, proxies=None):
 
     display_counters()
 
-    print("[INFO] Testing host connectivity via hping3 with a thread limit of 12...")
+    print("[INFO] Testing host connectivity via hping3 with proxies and a thread limit of 12...")
 
     # Use ThreadPoolExecutor with a maximum of 12 threads
     with ThreadPoolExecutor(max_workers=12) as executor:
+        # Cycle through proxies for each host
+        proxy_cycle = cycle(proxies)
+
         # Submit all host tests as tasks
-        futures = {executor.submit(test_single_host, host): host for host in hosts}
+        futures = {
+            executor.submit(test_single_host, host, next(proxy_cycle)): host
+            for host in hosts
+        }
 
         # Use tqdm to display progress
         for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Hosts"):
