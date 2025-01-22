@@ -284,7 +284,7 @@ def test_hosts(hosts, proxies):
     Test connectivity to multiple hosts using SOCKS proxies, multithreading, and random delays.
 
     :param hosts: List of hosts to test.
-    :param proxies: List of SOCKS proxies to use for testing.
+    :param proxies: List of SOCKS proxies to use for testing (each as a [IP, Port] list).
     :return: List of live hosts.
     """
     global global_live_hosts, counter_valid, counter_dead, counter_remaining, counter_total
@@ -319,8 +319,9 @@ def test_hosts(hosts, proxies):
 
         # Submit all host tests as tasks
         futures = {
-            executor.submit(test_single_host, host, next(proxy_cycle)): host
-            for host in hosts
+            executor.submit(
+                test_single_host, host, f"{proxy[0]}:{proxy[1]}"
+            ): host for host, proxy in zip(hosts, proxy_cycle)
         }
 
         # Use tqdm to display progress
