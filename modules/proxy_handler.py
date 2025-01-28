@@ -1,12 +1,12 @@
-from globals import global_scraped_proxies, global_tested_proxies
+from globals import global_scraped_proxies, global_tested_proxies, pause_event, stop_event
 import socks
 import socket
 from tqdm import tqdm
 import os
 import requests
-import csv
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 # Create proxy_lists folder if it doesn't exist
 proxy_lists_dir = "proxy_lists"
 if not os.path.exists(proxy_lists_dir):
@@ -45,12 +45,10 @@ def scrape_proxies():
     proxy_sources_file = "proxy_lists/proxy_sources.txt"
     unchecked_proxies_file = "proxy_lists/unchecked_proxies.txt"
 
-    # Ensure proxy_sources_file exists
     if not os.path.exists(proxy_sources_file):
         print(f"[ERROR] Proxy sources file not found: {proxy_sources_file}")
         return
 
-    # Read sources from proxy_sources.txt
     with open(proxy_sources_file, "r") as file:
         sources = [line.strip() for line in file if line.strip()]
 
@@ -61,22 +59,26 @@ def scrape_proxies():
     print("[INFO] Scraping proxies from sources...")
     scraped_proxies = []
 
-    # Define regex for IP:Port pattern
     proxy_pattern = re.compile(r"(\d{1,3}(?:\.\d{1,3}){3}:\d+)")
 
-    # Scrape each source
     for source in tqdm(sources, desc="Scraping Sources"):
+        # Check for stop or pause events
+        if stop_event.is_set():
+            print("[INFO] Scraping stopped.")
+            break
+        while pause_event.is_set():
+            tqdm.write("[INFO] Scraping paused. Press F5 to resume.")
+            time.sleep(0.5)
+
         try:
             response = requests.get(source, timeout=10)
             response.raise_for_status()
 
-            # Parse IP:Port pairs using regex
             proxies = proxy_pattern.findall(response.text)
             scraped_proxies.extend(proxies)
         except Exception as e:
             print(f"[ERROR] Failed to scrape from {source}: {e}")
 
-    # Remove duplicates and save proxies to file
     scraped_proxies = list(set(scraped_proxies))  # Deduplicate proxies
     with open(unchecked_proxies_file, "a") as file:
         for proxy in scraped_proxies:
@@ -99,7 +101,7 @@ def test_proxies(proxies):
         return []
 
     print("[INFO] Testing proxies...")
-    
+
     def test_and_store(proxy):
         try:
             proxy_host, proxy_port = proxy
@@ -112,6 +114,14 @@ def test_proxies(proxies):
     with ThreadPoolExecutor(max_workers=20) as executor:
         future_to_proxy = {executor.submit(test_and_store, proxy): proxy for proxy in proxies}
         for future in tqdm(as_completed(future_to_proxy), total=len(proxies), desc="Testing Proxies"):
+            # Check for stop or pause events
+            if stop_event.is_set():
+                print("[INFO] Proxy testing stopped.")
+                break
+            while pause_event.is_set():
+                tqdm.write("[INFO] Proxy testing paused. Press F5 to resume.")
+                time.sleep(0.5)
+
             result = future.result()
             if result:
                 global_tested_proxies.append(result)
