@@ -104,6 +104,14 @@ def test_proxies(proxies):
 
     def test_and_store(proxy):
         try:
+            # Check for pause
+            while pause_event.is_set():
+                time.sleep(0.5)  # Wait while paused
+
+        # Check for stop
+        if stop_event.is_set():
+            return None
+            
             proxy_host, proxy_port = proxy
             if test_single_proxy(proxy_host, int(proxy_port)):
                 return proxy
