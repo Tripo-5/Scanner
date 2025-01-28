@@ -1,11 +1,15 @@
-from globals import global_live_hosts, global_tested_proxies
+from globals import global_live_hosts, global_tested_proxies, pause_event, stop_event
 from tqdm import tqdm
 import socks
 import socket
 import os
-import re
 from itertools import cycle
+from threading import Lock
+from termcolor import colored
+import time
 
+# Global lock for thread-safe operations
+lock = Lock()
 
 def send_tcp_probe(ip, proxy, port=22):
     """
@@ -26,7 +30,7 @@ def send_tcp_probe(ip, proxy, port=22):
         banner = sock.recv(1024).decode("utf-8", errors="ignore")
         sock.close()
         return banner.strip()
-    except (socket.error, socks.ProxyError, socks.GeneralProxyError) as e:
+    except (socket.error, socks.ProxyError, socks.GeneralProxyError):
         return None
 
 def scan_hosts():
@@ -47,13 +51,23 @@ def scan_hosts():
     results = []
 
     for host in tqdm(global_live_hosts, desc="Scanning Hosts"):
+        # Check for stop event
+        if stop_event.is_set():
+            print("[INFO] Stopping scanning...")
+            break
+
+        # Wait if paused
+        while pause_event.is_set():
+            time.sleep(0.5)
+
         proxy = next(proxy_cycle)
         try:
             banner = send_tcp_probe(host, proxy)
             if banner:
                 results.append(f"{host}: {banner}")
+                print(colored(f"[INFO] {host}: {banner}", "green"))
         except Exception as e:
-            print(f"[ERROR] Error scanning host {host}: {e}")
+            print(colored(f"[ERROR] Error scanning host {host}: {e}", "red"))
 
     # Save scan results
     results_file = "results/scanned_hosts.txt"
@@ -76,7 +90,6 @@ def show_results():
         results = file.read()
         print("[INFO] Scan Results:\n")
         print(results)
-
 
 def clear_results():
     """
