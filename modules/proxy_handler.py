@@ -102,41 +102,44 @@ def test_proxies(proxies):
 
     print("[INFO] Testing proxies...")
 
-    def test_and_store(proxy):
-        try:
-            # Check for pause
-            while pause_event.is_set():
-                time.sleep(0.5)  # Wait while paused
+def test_and_store(proxy):
+    try:
+        # Check for pause
+        while pause_event.is_set():
+            time.sleep(0.5)  # Wait while paused
 
         # Check for stop
         if stop_event.is_set():
             return None
-            
-            proxy_host, proxy_port = proxy
-            if test_single_proxy(proxy_host, int(proxy_port)):
-                return proxy
-        except ValueError:
-            print(f"[ERROR] Invalid proxy format: {proxy}")
-        return None
 
-    with ThreadPoolExecutor(max_workers=20) as executor:
-        future_to_proxy = {executor.submit(test_and_store, proxy): proxy for proxy in proxies}
-        for future in tqdm(as_completed(future_to_proxy), total=len(proxies), desc="Testing Proxies"):
-            # Check for stop or pause events
-            if stop_event.is_set():
-                print("[INFO] Proxy testing stopped.")
-                break
-            while pause_event.is_set():
-                tqdm.write("[INFO] Proxy testing paused. Press F5 to resume.")
-                time.sleep(0.5)
+        proxy_host, proxy_port = proxy
+        if test_single_proxy(proxy_host, int(proxy_port)):
+            return proxy
+    except ValueError:
+        print(f"[ERROR] Invalid proxy format: {proxy}")
+    return None
 
+with ThreadPoolExecutor(max_workers=20) as executor:
+    future_to_proxy = {executor.submit(test_and_store, proxy): proxy for proxy in proxies}
+    for future in tqdm(as_completed(future_to_proxy), total=len(proxies), desc="Testing Proxies"):
+        # Check for stop or pause events
+        if stop_event.is_set():
+            print("[INFO] Proxy testing stopped.")
+            break
+        while pause_event.is_set():
+            tqdm.write("[INFO] Proxy testing paused. Press F5 to resume.")
+            time.sleep(0.5)
+
+        try:
             result = future.result()
             if result:
                 global_tested_proxies.append(result)
+        except Exception as e:
+            print(f"[ERROR] Unexpected error during proxy testing: {e}")
 
-    print(f"[INFO] {len(global_tested_proxies)} working proxies found.")
-    save_working_proxies()
-    return global_tested_proxies
+print(f"[INFO] {len(global_tested_proxies)} working proxies found.")
+save_working_proxies()
+return global_tested_proxies
 
 def test_single_proxy(proxy_host, proxy_port):
     """
