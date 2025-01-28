@@ -1,4 +1,8 @@
 # Global Variables
+import threading
+
+pause_event = threading.Event()
+stop_event = threading.Event()
 
 # Session Tracking
 global_active_sessions = []  # Tracks active C2 sessions
