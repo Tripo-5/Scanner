@@ -10,6 +10,8 @@ from globals import (
     global_error_log,
     global_scan_stats,
     global_wordlist_paths,
+    pause_event,
+    stop_event,
 )
 from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies, add_proxy_sources
 from modules.host_handler import load_hosts, load_ip_ranges, test_hosts
@@ -162,6 +164,31 @@ def main_menu():
             print("[INFO] Exiting. Stopping all listeners and background tasks.")
             stop_listeners()
             break
+
+def setup_keyboard_controls():
+    """
+    Set up F key bindings for pausing and stopping scans.
+    """
+    def toggle_pause():
+        if pause_event.is_set():
+            print("[INFO] Resuming...")
+            pause_event.clear()
+        else:
+            print("[INFO] Pausing...")
+            pause_event.set()
+
+    def stop_scan():
+        print("[INFO] Stopping...")
+        stop_event.set()
+
+    # Bind F keys
+    keyboard.add_hotkey("F5", toggle_pause)
+    keyboard.add_hotkey("F6", stop_scan)
+
+    print("[INFO] Press F5 to pause/resume and F6 to stop scanning.")
+
+# Call this in the main_menu to start the listener
+setup_keyboard_controls()
 
 if __name__ == "__main__":
     main_menu()
