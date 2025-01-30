@@ -7,33 +7,35 @@
 Installation
 Ensure you have Python 3.8+ installed. Then, install the required dependencies:
 
-sh
+`sh
 Copy
 Edit
 git clone https://github.com/Tripo-5/Scanner.git
 cd Scanner
-pip3 install -r requirements.txt
-Usage
-🔹 CLI Mode
-Run the tool via CLI using:
+pip3 install -r requirements.txt`
 
-sh
+## Usage
+###🔹 CLI Mode Run the tool via CLI using:
+
+`sh
 Copy
 Edit
-python3 main.py
-🔹 GUI Mode (New)
-To run the Graphical User Interface (GUI) version:
+python3 main.py`
 
-sh
+###🔹 GUI Mode (New) To run the Graphical User Interface (GUI) version:
+
+`sh
 Copy
 Edit
-python3 gui.py
-🔹 Ensure you have installed PyQt6 using:
+python3 gui.py`
+###🔹 Ensure you have installed PyQt6 using:
 
-sh
+`sh
 Copy
 Edit
-pip install PyQt6
+pip install PyQt6`
+
+
 🛠️ Features
 ✅ Proxy Management: Scrape, load, test, and manage SOCKS5 proxies.
 ✅ IP Range & Host Management: Load IP ranges, split large datasets, and test hosts.
