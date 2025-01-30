@@ -34,7 +34,7 @@ def main_menu():
         print("2.) Scrape Proxies")
         print("3.) Load Proxies")
         print("4.) Test Proxies")
-        print("5.) Clear Proxies")  # NEW OPTION
+        print("5.) Clear Proxies")
         print("6.) Load Hosts")
         print("7.) Load IP Ranges")
         print("8.) Test Hosts")
