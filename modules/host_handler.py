@@ -277,3 +277,16 @@ def test_hosts(hosts, proxies):
 
     print(f"[INFO] Found {len(global_live_hosts)} live hosts.")
     return global_live_hosts
+
+def load_tested_hosts():
+    """
+    Load previously tested live hosts from results/live_hosts.txt.
+    """
+    global global_live_hosts
+    if not os.path.exists("results/live_hosts.txt"):
+        print("[ERROR] No previously tested hosts found.")
+        return []
+    with open("results/live_hosts.txt", "r") as file:
+        global_live_hosts = [line.strip() for line in file if line.strip()]
+    print(f"[INFO] Loaded {len(global_live_hosts)} previously tested hosts.")
+    return global_live_hosts
