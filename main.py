@@ -39,7 +39,7 @@ def main_menu():
         print("7.) Load Hosts")
         print("8.) Load IP Ranges")
         print("9.) Test Hosts")
-        print("10.) Load Previously Tested Hosts")  # NEW OPTION
+        print("10.) Load Previously Tested Hosts")
         print("11.) Scan Hosts")
         print("12.) Show Results")
         print("13.) Clear Results")
@@ -73,7 +73,7 @@ def main_menu():
             global_hosts[:] = load_ip_ranges()
         elif choice == "9":
             global_live_hosts[:] = test_hosts(global_hosts, global_tested_proxies)
-        elif choice == "10":  # LOAD PREVIOUSLY TESTED HOSTS
+        elif choice == "10":
             global_live_hosts[:] = load_tested_hosts()
         elif choice == "11":
             scan_hosts()
