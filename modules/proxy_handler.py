@@ -186,3 +186,11 @@ def add_proxy_sources():
         for source in new_sources:
             file.write(source + "\n")
     print(f"[INFO] Added {len(new_sources)} new proxy sources to {proxy_sources_file}.")
+
+def clear_proxies():
+    """
+    Clear both unchecked and checked proxies.
+    """
+    for file in [unchecked_proxies_file, checked_proxies_file]:
+        open(file, "w").close()
+        print(f"[INFO] Cleared {file}.")
