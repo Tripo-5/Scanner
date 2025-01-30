@@ -1,5 +1,6 @@
 from globals import global_live_hosts  # Import global variables
 import subprocess
+import os
 
 
 def load_wordlists():
