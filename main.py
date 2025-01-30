@@ -14,7 +14,7 @@ from globals import (
     stop_event,
 )
 from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies, add_proxy_sources, clear_proxies, load_checked_proxies
-from modules.host_handler import load_hosts, load_ip_ranges, test_hosts
+from modules.host_handler import load_hosts, load_ip_ranges, test_hosts, load_tested_hosts
 from modules.scanner import scan_hosts, show_results, clear_results
 from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
 from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
