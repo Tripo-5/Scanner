@@ -194,3 +194,16 @@ def clear_proxies():
     for file in [unchecked_proxies_file, checked_proxies_file]:
         open(file, "w").close()
         print(f"[INFO] Cleared {file}.")
+
+def load_checked_proxies():
+    """
+    Load proxies from the checked proxies file into the global_scraped_proxies variable.
+    """
+    global global_scraped_proxies
+    if not os.path.exists("proxy_lists/checked_proxies.txt"):
+        print("[ERROR] Checked proxies file not found.")
+        return []
+    with open("proxy_lists/checked_proxies.txt", "r") as file:
+        global_scraped_proxies = [line.strip().split(":") for line in file if line.strip()]
+    print(f"[INFO] Loaded {len(global_scraped_proxies)} checked proxies.")
+    return global_scraped_proxies
