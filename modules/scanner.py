@@ -1,43 +1,88 @@
-from globals import global_live_hosts, global_tested_proxies, pause_event, stop_event
-from tqdm import tqdm
-import socks
-import socket
-import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from itertools import cycle
-from threading import Lock
-from termcolor import colored
 import time
+import os
+from tqdm import tqdm
+from termcolor import colored
+from threading import Lock
+from globals import (
+    global_live_hosts, global_tested_proxies, stop_event, pause_event
+)
+from modules.scanner_utils import send_tcp_probe  # Ensure `send_tcp_probe` is in a utility module
+
 
 # Global lock for thread-safe operations
 lock = Lock()
 
-def send_tcp_probe(ip, proxy, port=22):
-    """
-    Perform a banner grab on the given IP and port using a SOCKS5 proxy.
+# Lock for thread-safe operations
+lock = Lock()
 
-    :param ip: Target IP address
-    :param proxy: Proxy details (host and port)
-    :param port: Target port (default: 22)
-    :return: Banner string if successful, None otherwise
+# Counters for progress tracking
+counter_scanned = 0
+counter_valid = 0
+counter_failed = 0
+counter_total = 0
+counter_remaining = 0
+
+# Function to update the counters display dynamically
+def display_counters():
+    print("\033[H\033[J", end="")  # Clear terminal screen
+    print(f"[STATS] "
+          f"{colored(f'Scanned: {counter_scanned}', 'blue')} | "
+          f"{colored(f'Valid: {counter_valid}', 'green')} | "
+          f"{colored(f'Failed: {counter_failed}', 'red')} | "
+          f"{colored(f'Remaining: {counter_remaining}', 'yellow')} | "
+          f"{colored(f'Total: {counter_total}', 'white')}"
+    )
+
+def scan_single_host(host, proxy):
     """
-    proxy_host, proxy_port = proxy
+    Scan a single host using the given proxy and return its banner if available.
+
+    :param host: Target host IP address.
+    :param proxy: SOCKS5 proxy (IP, Port).
+    :return: Tuple (host, banner) if successful, None otherwise.
+    """
+    global counter_scanned, counter_valid, counter_failed, counter_remaining
+
     try:
-        sock = socks.socksocket()
-        sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port))
-        sock.settimeout(5)  # Set a 5-second timeout
-        sock.connect((ip, port))
-        sock.sendall(b"\n")  # Send a newline to initiate the banner response
-        banner = sock.recv(1024).decode("utf-8", errors="ignore")
-        sock.close()
-        return banner.strip()
-    except (socket.error, socks.ProxyError, socks.GeneralProxyError):
-        return None
+        # Check for stop or pause
+        while pause_event.is_set():
+            time.sleep(0.5)
+
+        if stop_event.is_set():
+            return None
+
+        banner = send_tcp_probe(host, proxy)
+        with lock:
+            counter_scanned += 1
+            counter_remaining -= 1
+            if banner:
+                counter_valid += 1
+                print(colored(f"[VALID] {host}: {banner}", "green"))
+                return f"{host}: {banner}"
+            else:
+                counter_failed += 1
+                print(colored(f"[FAILED] {host} - No banner received", "red"))
+
+        display_counters()
+        
+    except Exception as e:
+        with lock:
+            counter_failed += 1
+            counter_remaining -= 1
+        print(colored(f"[ERROR] {host} - {e}", "red"))
+        display_counters()
+
+    return None
 
 def scan_hosts():
     """
     Scan hosts in global_live_hosts using proxies from global_tested_proxies.
-    Perform a banner check on port 22.
+    Perform a banner check on port 22 using multithreading.
     """
+    global counter_scanned, counter_valid, counter_failed, counter_total, counter_remaining
+
     if not global_live_hosts:
         print("[ERROR] No live hosts available for scanning.")
         return
@@ -46,28 +91,41 @@ def scan_hosts():
         print("[ERROR] No tested proxies available for scanning.")
         return
 
+    print("[INFO] Starting multithreaded host scan...")
+
     proxy_cycle = cycle(global_tested_proxies)  # Cycle through proxies
-    print("[INFO] Starting host scan...")
     results = []
 
-    for host in tqdm(global_live_hosts, desc="Scanning Hosts"):
-        # Check for stop event
-        if stop_event.is_set():
-            print("[INFO] Stopping scanning...")
-            break
+    # Initialize counters
+    counter_scanned = 0
+    counter_valid = 0
+    counter_failed = 0
+    counter_total = len(global_live_hosts)
+    counter_remaining = len(global_live_hosts)
 
-        # Wait if paused
-        while pause_event.is_set():
-            time.sleep(0.5)
+    display_counters()  # Initial counter display
 
-        proxy = next(proxy_cycle)
-        try:
-            banner = send_tcp_probe(host, proxy)
-            if banner:
-                results.append(f"{host}: {banner}")
-                print(colored(f"[INFO] {host}: {banner}", "green"))
-        except Exception as e:
-            print(colored(f"[ERROR] Error scanning host {host}: {e}", "red"))
+    # Use ThreadPoolExecutor with max_workers = 12 for concurrency
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        future_to_host = {
+            executor.submit(scan_single_host, host, next(proxy_cycle)): host
+            for host in global_live_hosts
+        }
+
+        # Monitor progress with tqdm
+        for future in tqdm(as_completed(future_to_host), total=len(future_to_host), desc="Scanning Hosts"):
+            # Check for stop event
+            if stop_event.is_set():
+                print("[INFO] Stopping scanning...")
+                break
+
+            # Wait if paused
+            while pause_event.is_set():
+                time.sleep(0.5)
+
+            result = future.result()
+            if result:
+                results.append(result)
 
     # Save scan results
     results_file = "results/scanned_hosts.txt"
@@ -76,7 +134,6 @@ def scan_hosts():
         file.writelines(f"{line}\n" for line in results)
 
     print(f"[INFO] Scan complete. Results saved to {results_file}.")
-
 def show_results():
     """
     Display the scan results.
