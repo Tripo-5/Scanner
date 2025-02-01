@@ -10,32 +10,51 @@ os.makedirs("config", exist_ok=True)
 
 def load_config():
     """
-    Load configuration settings from the JSON file.
-    If the file does not exist, initialize it with default settings.
+    Load configuration settings from config.json, ensuring default values exist.
     """
-    global global_config
+    default_config = {
+        "tor_usage": False,
+        "db_config": {
+            "host": "localhost",
+            "user": "root",
+            "password": "password",
+            "database": "scanner_db"
+        }
+    }
+
     if not os.path.exists(CONFIG_FILE):
         print("[INFO] Configuration file not found. Creating default settings.")
-        save_config()  # Save default settings
+        save_config(default_config)  # Create a new config file
+        return default_config
 
     try:
-        with open(CONFIG_FILE, "r") as file:
-            global_config.update(json.load(file))
-    except Exception as e:
-        print(f"[ERROR] Failed to load configuration: {e}")
-        save_config()  # Reset to default if loading fails
+        with open(CONFIG_FILE, "r") as f:
+            config = json.load(f)
+        
+        # Ensure all required keys exist
+        for key, value in default_config.items():
+            if key not in config:
+                config[key] = value  # Add missing keys with default values
 
+        return config
 
-def save_config():
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"[ERROR] Failed to load config: {e}")
+        return default_config  # Return default settings if file is corrupted
+
+def save_config(config):
     """
-    Save the current configuration settings to the JSON file.
+    Save configuration settings to config.json.
     """
     try:
-        with open(CONFIG_FILE, "w") as file:
-            json.dump(global_config, file, indent=4)
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(config, f, indent=4)
         print("[INFO] Configuration settings saved.")
-    except Exception as e:
-        print(f"[ERROR] Failed to save configuration: {e}")
+    except IOError as e:
+        print(f"[ERROR] Failed to save config: {e}")
+
+# Load config globally
+global_config.update(load_config())
 
 
 def configure_settings():
