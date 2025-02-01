@@ -1,12 +1,8 @@
 import json
 import os
-from globals import global_config, pause_event, stop_event
+from globals import global_config
 
-CONFIG_FILE = "config/settings.json"
-
-# Ensure config directory exists
-os.makedirs("config", exist_ok=True)
-
+CONFIG_FILE = "config.json"
 
 def load_config():
     """
@@ -14,6 +10,7 @@ def load_config():
     """
     default_config = {
         "tor_usage": False,
+        "tor_renew_interval": 60,  # Set Tor renewal interval in seconds
         "db_config": {
             "host": "localhost",
             "user": "root",
@@ -30,7 +27,7 @@ def load_config():
     try:
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
-        
+
         # Ensure all required keys exist
         for key, value in default_config.items():
             if key not in config:
