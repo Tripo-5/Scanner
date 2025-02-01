@@ -57,10 +57,9 @@ def main_menu():
         print(" `--. \| |    |  _  || . ` || . ` ||  __| |    / ")
         print("/\__/ /| \__/\| | | || |\  || |\  || |___ | |\ \ ")
         print("\____/  \____/\_| |_/\_| \_/\_| \_/\____/ \_| \_|")
-        print("#################################################")      
-                                                 
-                                                 
-
+        print("#################################################")
+        print("#################################################")                                          
+        print("#################################################")
         print("\n[ Main Menu ]")
         print("1.) Add Proxy Sources")
         print("2.) Scrape Proxies")
@@ -87,6 +86,7 @@ def main_menu():
         print("23.) Command and Control Center")
         print("24.) Start/Stop Tor Proxy")
         print("25.) Exit")
+        print("#################################################")      
 
         choice = input("Enter your choice: ")
         if choice == "1":
