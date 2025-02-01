@@ -117,3 +117,49 @@ def ensure_valid_hosts():
             file.write(f"{host}\n")
 
     print(f"[INFO] Live hosts saved to {valid_hosts_file}.")
+
+def send_tcp_probe(ip, proxy, port=22, max_retries=3):
+    """
+    Perform a banner grab on the given IP and port using a SOCKS5 proxy.
+
+    :param ip: Target IP address
+    :param proxy: Proxy details (host, port)
+    :param port: Target port (default: 22)
+    :param max_retries: Number of retry attempts if a proxy fails
+    :return: Banner string if successful, None otherwise
+    """
+    proxy_host, proxy_port = proxy
+    attempt = 0
+
+    while attempt < max_retries:
+        try:
+            print(colored(f"[INFO] Probing {ip} via {proxy_host}:{proxy_port}", "yellow"))
+
+            # Set up SOCKS5 proxy
+            sock = socks.socksocket()
+            sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port))
+            sock.settimeout(5)  # Set a 5-second timeout
+
+            # Connect to SSH port
+            sock.connect((ip, port))
+            sock.sendall(b"\n")  # Send a newline to trigger banner response
+
+            # Receive banner
+            banner = sock.recv(1024).decode("utf-8", errors="ignore").strip()
+            sock.close()
+
+            if banner:
+                print(colored(f"[VALID] {ip} Banner: {banner}", "green"))
+                return banner
+
+        except (socket.error, socks.ProxyError, socks.GeneralProxyError) as e:
+            print(colored(f"[ERROR] Proxy failed for {ip} via {proxy_host}:{proxy_port} - {e}", "red"))
+
+        # Retry with exponential backoff
+        attempt += 1
+        wait_time = attempt * 2
+        print(colored(f"[INFO] Retrying ({attempt}/{max_retries}) in {wait_time} seconds...", "cyan"))
+        time.sleep(wait_time)
+
+    print(colored(f"[DEAD] {ip} is unreachable after {max_retries} attempts.", "red"))
+    return None
