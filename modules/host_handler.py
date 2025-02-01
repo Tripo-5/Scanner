@@ -32,6 +32,21 @@ def display_counters():
           f"{colored(f'Remaining: {counter_remaining}', 'yellow')} | "
           f"{colored(f'Total: {counter_total}', 'white')}")
 
+def load_hosts():
+    """
+    Load hosts from a file into the global_hosts variable.
+    """
+    global global_hosts
+    file_path = input("Enter the path to the hosts file: ")
+    if not os.path.exists(file_path):
+        print(f"[ERROR] File not found: {file_path}")
+        return []
+
+    with open(file_path, "r") as file:
+        global_hosts = [line.strip() for line in file if line.strip()]
+    print(f"[INFO] Loaded {len(global_hosts)} hosts from {file_path}.")
+    return global_hosts
+
 def load_previous_hosts():
     """
     Load previously tested live hosts from the results file.
