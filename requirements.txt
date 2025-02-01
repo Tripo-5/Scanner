@@ -6,3 +6,4 @@ pysocks
 termcolor
 mysql-connector
 pycryptodome
+keyboard
