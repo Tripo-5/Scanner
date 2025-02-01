@@ -10,6 +10,7 @@ global_active_sessions = []  # Stores active session details
 
 # Global Configurations
 global_config = {
+    "tor_usage": False,
     "tor_enabled": False,  # Toggle Tor integration
     "tor_port": 9050,  # Default Tor SOCKS5 port
     "proxy_usage": True,  # Toggle proxy usage for scanning
