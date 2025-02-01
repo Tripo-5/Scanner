@@ -4,14 +4,16 @@ import os
 import mysql.connector
 from modules.config_handler import load_config
 
-# Load database configuration from the config file
-db_config = load_config().get("db_config", {
+config = load_config()
+if not config:
+    config = {}  # Ensure it's always a dictionary
+
+db_config = config.get("db_config", {
     "host": "localhost",
     "user": "root",
     "password": "password",
-    "database": "c2_database",
+    "database": "scanner_db"
 })
-
 # Global list to maintain connected clients and listener threads
 connected_clients = []
 listener_threads = []
