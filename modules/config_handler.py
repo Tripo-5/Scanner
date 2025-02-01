@@ -1,6 +1,8 @@
 import json
 import os
-from globals import global_config
+import time
+import threading
+from globals import global_config, stop_event, pause_event  # Fixed missing imports
 
 CONFIG_FILE = "config.json"
 
@@ -10,7 +12,11 @@ def load_config():
     """
     default_config = {
         "tor_usage": False,
-        "tor_renew_interval": 60,  # Set Tor renewal interval in seconds
+        "tor_renew_interval": 60,  # Renew Tor IP every 60 seconds by default
+        "proxy_usage": False,
+        "max_scan_threads": 10,
+        "scan_timeout": 5,
+        "auto_save_results": True,
         "db_config": {
             "host": "localhost",
             "user": "root",
@@ -51,8 +57,7 @@ def save_config(config):
         print(f"[ERROR] Failed to save config: {e}")
 
 # Load config globally
-global_config.update(load_config())
-
+global_config = load_config()  # Fixed issue with update
 
 def configure_settings():
     """
@@ -103,7 +108,7 @@ def configure_settings():
             global_config["auto_save_results"] = not global_config["auto_save_results"]
             print("[INFO] Auto-save results set to:", global_config["auto_save_results"])
         elif choice == "7":
-            save_config()
+            save_config(global_config)  # Fixed missing argument
             print("[INFO] Configuration saved. Returning to main menu.")
             break
         elif choice == "8":
@@ -111,7 +116,6 @@ def configure_settings():
             break
         else:
             print("[ERROR] Invalid choice. Please select a valid option.")
-
 
 def renew_tor_connection():
     """
@@ -128,15 +132,11 @@ def renew_tor_connection():
         print(f"[ERROR] Failed to renew Tor connection: {e}")
     pause_event.clear()  # Resume scanning
 
-
 def auto_renew_tor():
     """
     Automatically renew Tor connections at set intervals.
     This runs in a background thread.
     """
-    import threading
-    import time
-
     def renew_loop():
         while not stop_event.is_set():
             if global_config["tor_usage"]:
@@ -144,7 +144,6 @@ def auto_renew_tor():
             time.sleep(global_config["tor_renew_interval"])
 
     threading.Thread(target=renew_loop, daemon=True).start()
-
 
 # Load configuration at startup
 load_config()
