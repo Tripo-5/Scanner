@@ -38,6 +38,8 @@ from modules.command_control import start_listener, c2_interface, start_apache_s
 from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
 import os
 import keyboard
+from modules.go_bruteforce import run_golang_bruteforce
+from modules.proxy_handler import load_proxies, test_proxies
 
 def main_menu():
     while True:
