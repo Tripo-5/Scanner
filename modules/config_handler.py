@@ -1,126 +1,135 @@
 import json
 import os
-import socket
+from globals import global_config, pause_event, stop_event
 
-CONFIG_FILE = "config.json"
+CONFIG_FILE = "config/settings.json"
 
-# Default configuration settings
-default_config = {
-    "save_progress": True,
-    "enable_reverse_shell": False,
-    "listening_port": 4444,
-    "listening_ip": "0.0.0.0",
-    "enable_ddns": False,       # Option to enable DDNS
-    "ddns_domain": "",          # DDNS domain name
-}
+# Ensure config directory exists
+os.makedirs("config", exist_ok=True)
 
 
 def load_config():
     """
-    Load or create the configuration file.
-
-    :return: Dictionary containing the configuration settings.
+    Load configuration settings from the JSON file.
+    If the file does not exist, initialize it with default settings.
     """
+    global global_config
     if not os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "w") as file:
-            json.dump(default_config, file, indent=4)
-        print(f"[INFO] Created default configuration file: {CONFIG_FILE}")
+        print("[INFO] Configuration file not found. Creating default settings.")
+        save_config()  # Save default settings
 
-    with open(CONFIG_FILE, "r") as file:
-        config = json.load(file)
-    return config
+    try:
+        with open(CONFIG_FILE, "r") as file:
+            global_config.update(json.load(file))
+    except Exception as e:
+        print(f"[ERROR] Failed to load configuration: {e}")
+        save_config()  # Reset to default if loading fails
 
 
-def save_config(config):
+def save_config():
     """
-    Save the given configuration to the configuration file.
-
-    :param config: Dictionary containing configuration settings.
-    """
-    with open(CONFIG_FILE, "w") as file:
-        json.dump(config, file, indent=4)
-    print(f"[INFO] Configuration saved to {CONFIG_FILE}.")
-
-
-def resolve_ddns(domain):
-    """
-    Resolve the IP address for a DDNS domain.
-
-    :param domain: The DDNS domain name.
-    :return: The resolved IP address, or None if resolution fails.
+    Save the current configuration settings to the JSON file.
     """
     try:
-        ip_address = socket.gethostbyname(domain)
-        print(f"[INFO] Resolved DDNS domain '{domain}' to IP: {ip_address}")
-        return ip_address
-    except socket.gaierror:
-        print(f"[ERROR] Failed to resolve DDNS domain: {domain}")
-        return None
+        with open(CONFIG_FILE, "w") as file:
+            json.dump(global_config, file, indent=4)
+        print("[INFO] Configuration settings saved.")
+    except Exception as e:
+        print(f"[ERROR] Failed to save configuration: {e}")
 
 
 def configure_settings():
     """
-    Display and modify configuration settings.
+    Interactive menu to configure the settings.
     """
-    config = load_config()
-
-    print("\n[ Configuration Settings ]")
-    print(f"1.) Save Progress: {config['save_progress']}")
-    print(f"2.) Enable Reverse Shell: {config['enable_reverse_shell']}")
-    print(f"3.) Listening IP: {config['listening_ip']}")
-    print(f"4.) Listening Port: {config['listening_port']}")
-    print(f"5.) Enable DDNS: {config['enable_ddns']}")
-    print(f"6.) DDNS Domain: {config['ddns_domain']}")
-    print("7.) Exit Settings")
-
     while True:
-        choice = input("Select a setting to modify (or 7 to exit): ").strip()
+        print("\n[ Configuration Settings ]")
+        print("1.) Toggle Tor Usage (Current: {})".format("Enabled" if global_config["tor_usage"] else "Disabled"))
+        print("2.) Toggle Proxy Usage (Current: {})".format("Enabled" if global_config["proxy_usage"] else "Disabled"))
+        print("3.) Set Max Scan Threads (Current: {})".format(global_config["max_scan_threads"]))
+        print("4.) Set Scan Timeout (Current: {}s)".format(global_config["scan_timeout"]))
+        print("5.) Set Tor Renew Interval (Current: {}s)".format(global_config["tor_renew_interval"]))
+        print("6.) Enable/Disable Auto-Save Results (Current: {})".format(
+            "Enabled" if global_config["auto_save_results"] else "Disabled"))
+        print("7.) Save & Exit")
+        print("8.) Exit Without Saving")
+
+        choice = input("Enter your choice: ")
 
         if choice == "1":
-            config["save_progress"] = not config["save_progress"]
-            print(f"[INFO] Save Progress set to {config['save_progress']}.")
+            global_config["tor_usage"] = not global_config["tor_usage"]
+            print("[INFO] Tor usage set to:", global_config["tor_usage"])
         elif choice == "2":
-            config["enable_reverse_shell"] = not config["enable_reverse_shell"]
-            print(f"[INFO] Enable Reverse Shell set to {config['enable_reverse_shell']}.")
+            global_config["proxy_usage"] = not global_config["proxy_usage"]
+            print("[INFO] Proxy usage set to:", global_config["proxy_usage"])
         elif choice == "3":
-            new_ip = input("Enter new Listening IP: ").strip()
-            config["listening_ip"] = new_ip
-            print(f"[INFO] Listening IP set to {config['listening_ip']}.")
+            try:
+                max_threads = int(input("Enter max scan threads (default: 10): "))
+                if max_threads > 0:
+                    global_config["max_scan_threads"] = max_threads
+            except ValueError:
+                print("[ERROR] Invalid input. Must be a number.")
         elif choice == "4":
             try:
-                new_port = int(input("Enter new Listening Port: ").strip())
-                config["listening_port"] = new_port
-                print(f"[INFO] Listening Port set to {config['listening_port']}.")
+                scan_timeout = int(input("Enter scan timeout in seconds (default: 5): "))
+                if scan_timeout > 0:
+                    global_config["scan_timeout"] = scan_timeout
             except ValueError:
-                print("[ERROR] Invalid port. Please enter a valid integer.")
+                print("[ERROR] Invalid input. Must be a number.")
         elif choice == "5":
-            config["enable_ddns"] = not config["enable_ddns"]
-            print(f"[INFO] Enable DDNS set to {config['enable_ddns']}.")
+            try:
+                renew_interval = int(input("Enter Tor renew interval in seconds (default: 60): "))
+                if renew_interval > 0:
+                    global_config["tor_renew_interval"] = renew_interval
+            except ValueError:
+                print("[ERROR] Invalid input. Must be a number.")
         elif choice == "6":
-            new_domain = input("Enter DDNS Domain: ").strip()
-            config["ddns_domain"] = new_domain
-            print(f"[INFO] DDNS Domain set to {config['ddns_domain']}.")
+            global_config["auto_save_results"] = not global_config["auto_save_results"]
+            print("[INFO] Auto-save results set to:", global_config["auto_save_results"])
         elif choice == "7":
+            save_config()
+            print("[INFO] Configuration saved. Returning to main menu.")
+            break
+        elif choice == "8":
+            print("[INFO] Discarding changes. Returning to main menu.")
             break
         else:
             print("[ERROR] Invalid choice. Please select a valid option.")
 
-    save_config(config)
 
-
-def setup_reverse_shell_listener():
+def renew_tor_connection():
     """
-    Setup the reverse shell listener based on configuration.
+    Force a new Tor circuit connection.
+    This will pause scanning, renew the connection, and then resume scanning.
     """
-    config = load_config()
+    print("[INFO] Renewing Tor connection...")
+    pause_event.set()  # Pause scanning while renewing
+    try:
+        os.system("killall -HUP tor")  # Restart Tor service (Linux)
+        time.sleep(3)  # Give Tor some time to reconnect
+        print("[INFO] Tor connection renewed.")
+    except Exception as e:
+        print(f"[ERROR] Failed to renew Tor connection: {e}")
+    pause_event.clear()  # Resume scanning
 
-    if config["enable_reverse_shell"]:
-        ip = config["listening_ip"]
-        if config["enable_ddns"] and config["ddns_domain"]:
-            resolved_ip = resolve_ddns(config["ddns_domain"])
-            ip = resolved_ip if resolved_ip else ip
 
-        port = config["listening_port"]
-        print(f"[INFO] Setting up reverse shell listener on {ip}:{port}")
+def auto_renew_tor():
+    """
+    Automatically renew Tor connections at set intervals.
+    This runs in a background thread.
+    """
+    import threading
+    import time
 
-        # Logic for starting the listener (e.g., using socket)
+    def renew_loop():
+        while not stop_event.is_set():
+            if global_config["tor_usage"]:
+                renew_tor_connection()
+            time.sleep(global_config["tor_renew_interval"])
+
+    threading.Thread(target=renew_loop, daemon=True).start()
+
+
+# Load configuration at startup
+load_config()
+auto_renew_tor()
