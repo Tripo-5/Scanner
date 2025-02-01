@@ -1,23 +1,23 @@
-from globals import (
-    global_live_hosts, global_tested_proxies,
-    pause_event, stop_event
-)
+from globals import global_live_hosts, global_tested_proxies, pause_event, stop_event
+from itertools import cycle
 import socks
 import socket
 import os
 import time
-import random
+import threading
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from termcolor import colored
-from itertools import cycle
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Ensure results directory exists
+# Global lock for thread-safe operations
+lock = threading.Lock()
+
+# Ensure the results directory exists
 os.makedirs("results", exist_ok=True)
 
 # Counters for progress tracking
-counter_valid = 0
-counter_dead = 0
+counter_scanned = 0
+counter_failed = 0
 counter_total = 0
 counter_remaining = 0
 
@@ -25,8 +25,8 @@ counter_remaining = 0
 def display_counters():
     print("\033[H\033[J", end="")  # Clear terminal screen
     print(f"[STATS] "
-          f"{colored(f'Valid: {counter_valid}', 'green')} | "
-          f"{colored(f'Dead: {counter_dead}', 'red')} | "
+          f"{colored(f'Scanned: {counter_scanned}', 'green')} | "
+          f"{colored(f'Failed: {counter_failed}', 'red')} | "
           f"{colored(f'Remaining: {counter_remaining}', 'yellow')} | "
           f"{colored(f'Total: {counter_total}', 'white')}")
 
@@ -54,49 +54,50 @@ def send_tcp_probe(ip, proxy, port=22):
 
 def scan_single_host(host, proxy):
     """
-    Scan a single host for SSH banners.
-
-    :param host: Target host IP
-    :param proxy: SOCKS5 Proxy (IP:Port format)
+    Scan a single host using a SOCKS5 proxy.
+    
+    :param host: The target host.
+    :param proxy: The proxy being used for the scan.
     """
-    global counter_valid, counter_dead, counter_remaining
+    global counter_scanned, counter_failed, counter_remaining
+
+    # Check for pause or stop
+    while pause_event.is_set():
+        time.sleep(0.5)
+
+    if stop_event.is_set():
+        print("[INFO] Scanning stopped.")
+        return
+
     try:
-        # Pause & Stop handling
-        while pause_event.is_set():
-            time.sleep(0.5)
-        if stop_event.is_set():
-            print("[INFO] Scanning stopped.")
-            return None
-
-        # Perform banner grab
         banner = send_tcp_probe(host, proxy)
-
         if banner:
-            with open("results/scanned_hosts.txt", "a") as file:
-                file.write(f"{host}: {banner}\n")
+            with lock:
+                with open("results/scanned_hosts.txt", "a") as file:
+                    file.write(f"{host}: {banner}\n")
 
-            # Update counters
-            counter_valid += 1
-            counter_remaining -= 1
-            display_counters()
-            print(colored(f"[VALID] {host}: {banner}", "green"))
-            return host, banner
+                counter_scanned += 1
+                counter_remaining -= 1
+
+                display_counters()
+                print(colored(f"[INFO] {host}: {banner}", "green"))
         else:
-            raise Exception("No banner retrieved.")
+            raise ValueError("No banner received")
 
     except Exception as e:
-        counter_dead += 1
-        counter_remaining -= 1
-        display_counters()
-        print(colored(f"[DEAD] {host}: {e}", "red"))
-        return None
+        with lock:
+            counter_failed += 1
+            counter_remaining -= 1
+            display_counters()
+        print(colored(f"[ERROR] Error scanning host {host}: {e}", "red"))
 
 def scan_hosts():
     """
     Scan hosts in global_live_hosts using proxies from global_tested_proxies.
     Perform a banner check on port 22.
     """
-    global counter_valid, counter_dead, counter_remaining, counter_total
+    global counter_scanned, counter_failed, counter_total, counter_remaining
+
     if not global_live_hosts:
         print("[ERROR] No live hosts available for scanning.")
         return
@@ -105,46 +106,44 @@ def scan_hosts():
         print("[ERROR] No tested proxies available for scanning.")
         return
 
+    proxy_cycle = cycle(global_tested_proxies)  # Cycle through proxies
+
     # Initialize counters
-    counter_valid = 0
-    counter_dead = 0
+    counter_scanned = 0
+    counter_failed = 0
     counter_total = len(global_live_hosts)
     counter_remaining = len(global_live_hosts)
 
     # Clear previous scan results
-    open("results/scanned_hosts.txt", "w").close()
+    with open("results/scanned_hosts.txt", "w") as file:
+        pass
 
     display_counters()
-    print("[INFO] Starting multi-threaded host scan...")
 
-    # Cycle through proxies
-    proxy_cycle = cycle(global_tested_proxies)
+    print("[INFO] Starting host scan...")
 
-    with ThreadPoolExecutor(max_workers=12) as executor:
-        futures = {
-            executor.submit(scan_single_host, host, next(proxy_cycle)): host
-            for host in global_live_hosts
-        }
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(scan_single_host, host, next(proxy_cycle)): host for host in global_live_hosts}
 
         for future in tqdm(as_completed(futures), total=len(futures), desc="Scanning Hosts"):
+            # Check for stop event
             if stop_event.is_set():
                 print("[INFO] Stopping scanning...")
                 break
 
+            # Wait if paused
             while pause_event.is_set():
-                tqdm.write("[INFO] Scanning paused. Press F5 to resume.")
                 time.sleep(0.5)
 
             try:
-                future.result()
+                future.result()  # Ensure exceptions are raised
             except Exception as e:
                 host = futures[future]
-                print(colored(f"[ERROR] Error scanning host {host}: {e}", "yellow"))
+                print(colored(f"[ERROR] Error scanning host {host}: {e}", "red"))
 
             display_counters()
 
-    print(f"[INFO] Scan complete. Found {counter_valid} live hosts.")
-    print("[INFO] Results saved to results/scanned_hosts.txt.")
+    print(f"[INFO] Scan complete. Results saved to results/scanned_hosts.txt.")
 
 def show_results():
     """
