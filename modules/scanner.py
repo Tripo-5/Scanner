@@ -10,10 +10,6 @@ from globals import (
 )
 from modules.utils import send_tcp_probe  # Ensure `send_tcp_probe` is in a utility module
 
-
-# Global lock for thread-safe operations
-lock = Lock()
-
 # Lock for thread-safe operations
 lock = Lock()
 
