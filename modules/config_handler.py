@@ -12,7 +12,7 @@ def load_config():
     """
     default_config = {
         "tor_usage": False,
-        "tor_renew_interval": 60,  # Renew Tor IP every 60 seconds by default
+        "tor_renew_interval": 60,
         "proxy_usage": False,
         "max_scan_threads": 10,
         "scan_timeout": 5,
@@ -37,13 +37,16 @@ def load_config():
         # Ensure all required keys exist
         for key, value in default_config.items():
             if key not in config:
+                print(f"[WARNING] Missing config key: {key}. Adding default value.")
                 config[key] = value  # Add missing keys with default values
 
+        save_config(config)  # Save updated config
         return config
 
     except (json.JSONDecodeError, IOError) as e:
         print(f"[ERROR] Failed to load config: {e}")
         return default_config  # Return default settings if file is corrupted
+
 
 def save_config(config):
     """
