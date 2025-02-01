@@ -111,16 +111,33 @@ def main_menu():
             except ValueError:
                 max_lines = 200
             split_large_csvs(base_dir, max_lines)
-        elif choice == "18":
-            if not global_live_hosts:
-                print("[ERROR] No valid live hosts found.")
-                continue
-            targets = global_live_hosts
-            usernames, passwords = load_wordlists()
-            if not usernames or not passwords:
-                print("[ERROR] Missing or empty wordlists.")
-                continue
-            bruteforce_ssh(targets, usernames, passwords, max_threads=5)
+       elif choice == "18":
+    if not global_live_hosts:
+        print("[ERROR] No valid live hosts found.")
+        continue
+
+    targets = global_live_hosts
+    usernames, passwords = load_wordlists()
+    if not usernames or not passwords:
+        print("[ERROR] Missing or empty wordlists.")
+        continue
+
+    print("\n[ SSH Bruteforce Options ]")
+    print("1.) Python-Based Brute Force (Hydra/Paramiko)")
+    print("2.) Golang-Based Brute Force (SOCKS5 + Tor)")
+    print("3.) Return to Main Menu")
+
+    bruteforce_choice = input("Enter your choice: ")
+
+    if bruteforce_choice == "1":
+        python_bruteforce_ssh(targets, usernames, passwords, max_threads=5)
+    elif bruteforce_choice == "2":
+        golang_bruteforce_ssh()
+    elif bruteforce_choice == "3":
+        continue
+    else:
+        print("[ERROR] Invalid choice. Please enter 1, 2, or 3.")
+ 
         elif choice == "19":
             # Run Golang SSH Bruteforce with SOCKS5 proxies
             if not global_live_hosts:
