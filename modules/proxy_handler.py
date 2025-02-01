@@ -1,18 +1,24 @@
-from globals import global_scraped_proxies, global_tested_proxies, pause_event, stop_event
+from globals import (
+    global_scraped_proxies, global_tested_proxies,
+    pause_event, stop_event
+)
 import socks
 import socket
-from tqdm import tqdm
 import os
 import requests
+import time
+import random
 import re
+from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Create proxy_lists folder if it doesn't exist
+# Create proxy_lists directory if it doesn't exist
 proxy_lists_dir = "proxy_lists"
 if not os.path.exists(proxy_lists_dir):
     os.makedirs(proxy_lists_dir)
     print(f"[INFO] Created directory: {proxy_lists_dir}")
 
+# File paths for proxies
 unchecked_proxies_file = os.path.join(proxy_lists_dir, "unchecked_proxies.txt")
 checked_proxies_file = os.path.join(proxy_lists_dir, "checked_proxies.txt")
 proxy_sources_file = os.path.join(proxy_lists_dir, "proxy_sources.txt")
@@ -26,7 +32,7 @@ for file_path in [unchecked_proxies_file, checked_proxies_file, proxy_sources_fi
 
 def load_proxies():
     """
-    Load proxies from the unchecked proxies file and store them in the global_scraped_proxies variable.
+    Load proxies from the unchecked proxies file into global_scraped_proxies.
     """
     global global_scraped_proxies
     if not os.path.exists(unchecked_proxies_file):
@@ -38,13 +44,33 @@ def load_proxies():
     print(f"[INFO] Loaded {len(global_scraped_proxies)} proxies from {unchecked_proxies_file}.")
     return global_scraped_proxies
 
+def load_checked_proxies():
+    """
+    Load previously tested proxies from checked_proxies.txt into global_tested_proxies.
+    """
+    global global_tested_proxies
+    if not os.path.exists(checked_proxies_file):
+        print(f"[ERROR] No previously tested proxies found.")
+        return []
+
+    with open(checked_proxies_file, "r") as file:
+        global_tested_proxies = [line.strip().split(":") for line in file if line.strip()]
+    
+    print(f"[INFO] Loaded {len(global_tested_proxies)} previously tested proxies.")
+    return global_tested_proxies
+
+def clear_proxies():
+    """
+    Clear all proxies from both unchecked and checked proxy lists.
+    """
+    open(unchecked_proxies_file, "w").close()
+    open(checked_proxies_file, "w").close()
+    print("[INFO] All proxy lists have been cleared.")
+
 def scrape_proxies():
     """
-    Scrape proxies from the sources listed in proxy_sources.txt and save valid IP:Port pairs to unchecked_proxies.txt.
+    Scrape proxies from sources listed in proxy_sources.txt and save valid IP:Port pairs to unchecked_proxies.txt.
     """
-    proxy_sources_file = "proxy_lists/proxy_sources.txt"
-    unchecked_proxies_file = "proxy_lists/unchecked_proxies.txt"
-
     if not os.path.exists(proxy_sources_file):
         print(f"[ERROR] Proxy sources file not found: {proxy_sources_file}")
         return
@@ -59,27 +85,20 @@ def scrape_proxies():
     print("[INFO] Scraping proxies from sources...")
     scraped_proxies = []
 
+    # Define regex for IP:Port pattern
     proxy_pattern = re.compile(r"(\d{1,3}(?:\.\d{1,3}){3}:\d+)")
 
     for source in tqdm(sources, desc="Scraping Sources"):
-        # Check for stop or pause events
-        if stop_event.is_set():
-            print("[INFO] Scraping stopped.")
-            break
-        while pause_event.is_set():
-            tqdm.write("[INFO] Scraping paused. Press F5 to resume.")
-            time.sleep(0.5)
-
         try:
             response = requests.get(source, timeout=10)
             response.raise_for_status()
-
             proxies = proxy_pattern.findall(response.text)
             scraped_proxies.extend(proxies)
         except Exception as e:
             print(f"[ERROR] Failed to scrape from {source}: {e}")
 
-    scraped_proxies = list(set(scraped_proxies))  # Deduplicate proxies
+    # Deduplicate proxies and save them
+    scraped_proxies = list(set(scraped_proxies))
     with open(unchecked_proxies_file, "a") as file:
         for proxy in scraped_proxies:
             file.write(proxy + "\n")
@@ -88,7 +107,7 @@ def scrape_proxies():
 
 def test_proxies(proxies):
     """
-    Test the list of proxies concurrently and store the working ones in the global_tested_proxies variable.
+    Test the list of proxies concurrently and store working ones in global_tested_proxies.
 
     :param proxies: List of proxies to test
     :return: List of working proxies
@@ -104,11 +123,9 @@ def test_proxies(proxies):
 
     def test_and_store(proxy):
         try:
-            # Check for pause
+            # Pause/Stop check
             while pause_event.is_set():
-                time.sleep(0.5)  # Wait while paused
-
-            # Check for stop
+                time.sleep(0.5)
             if stop_event.is_set():
                 return None
 
@@ -122,7 +139,6 @@ def test_proxies(proxies):
     with ThreadPoolExecutor(max_workers=20) as executor:
         future_to_proxy = {executor.submit(test_and_store, proxy): proxy for proxy in proxies}
         for future in tqdm(as_completed(future_to_proxy), total=len(proxies), desc="Testing Proxies"):
-            # Check for stop or pause events
             if stop_event.is_set():
                 print("[INFO] Proxy testing stopped.")
                 break
@@ -130,17 +146,13 @@ def test_proxies(proxies):
                 tqdm.write("[INFO] Proxy testing paused. Press F5 to resume.")
                 time.sleep(0.5)
 
-            try:
-                result = future.result()
-                if result:
-                    global_tested_proxies.append(result)
-            except Exception as e:
-                print(f"[ERROR] Unexpected error during proxy testing: {e}")
+            result = future.result()
+            if result:
+                global_tested_proxies.append(result)
 
     print(f"[INFO] {len(global_tested_proxies)} working proxies found.")
     save_working_proxies()
-    return global_tested_proxies  # Ensure return is inside the function
-
+    return global_tested_proxies
 
 def test_single_proxy(proxy_host, proxy_port):
     """
@@ -186,24 +198,3 @@ def add_proxy_sources():
         for source in new_sources:
             file.write(source + "\n")
     print(f"[INFO] Added {len(new_sources)} new proxy sources to {proxy_sources_file}.")
-
-def clear_proxies():
-    """
-    Clear both unchecked and checked proxies.
-    """
-    for file in [unchecked_proxies_file, checked_proxies_file]:
-        open(file, "w").close()
-        print(f"[INFO] Cleared {file}.")
-
-def load_checked_proxies():
-    """
-    Load proxies from the checked proxies file into the global_scraped_proxies variable.
-    """
-    global global_scraped_proxies
-    if not os.path.exists("proxy_lists/checked_proxies.txt"):
-        print("[ERROR] Checked proxies file not found.")
-        return []
-    with open("proxy_lists/checked_proxies.txt", "r") as file:
-        global_scraped_proxies = [line.strip().split(":") for line in file if line.strip()]
-    print(f"[INFO] Loaded {len(global_scraped_proxies)} checked proxies.")
-    return global_scraped_proxies
