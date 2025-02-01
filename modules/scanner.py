@@ -8,7 +8,7 @@ from threading import Lock
 from globals import (
     global_live_hosts, global_tested_proxies, stop_event, pause_event
 )
-from modules.scanner_utils import send_tcp_probe  # Ensure `send_tcp_probe` is in a utility module
+from modules.utils import send_tcp_probe  # Ensure `send_tcp_probe` is in a utility module
 
 
 # Global lock for thread-safe operations
