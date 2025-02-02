@@ -106,9 +106,13 @@ def test_single_proxy(proxy, test_url="http://example.com"):
     :param proxy: Proxy in IP:Port format
     :param test_url: URL to test the proxy with
     """
+    # Ensure proxy is in the correct format (string)
+    if isinstance(proxy, list):
+        proxy = ":".join(proxy)  # Convert list to string "IP:Port"
+
     proxy_host, proxy_port = proxy.split(":")
     proxy_port = int(proxy_port)
-    
+
     # Check if the scanning is paused or stopped
     while pause_event.is_set():
         time.sleep(0.5)
