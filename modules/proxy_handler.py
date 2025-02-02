@@ -150,15 +150,24 @@ def test_single_proxy(proxy):
         proxy_host, proxy_port = proxy.split(":")
         proxy_port = int(proxy_port)
 
+        # Validate that the port is within the valid range (0-65535)
+        if not (0 <= proxy_port <= 65535):
+            print(colored(f"[ERROR] Invalid port {proxy_port} for proxy {proxy_host}:{proxy_port}", "red"))
+            return False
+
         # Set up SOCKS5 proxy using the provided proxy
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
         sock.settimeout(5)  # 5-second timeout for proxy connection
-        sock.connect(("httpbin.org", 80))  # Test connection with a simple HTTP request
+        sock.connect(("httpstat.us", 80))  # Test connection with httpstat.us
         sock.close()
 
         return True
-    except (socket.error, socks.ProxyError) as e:
+    except (ValueError, socket.error, socks.ProxyError) as e:
+        print(colored(f"[ERROR] Failed to connect to proxy {proxy_host}:{proxy_port} - {e}", "red"))
+        return False
+    except Exception as e:
+        print(colored(f"[ERROR] Unexpected error testing proxy {proxy_host}:{proxy_port} - {e}", "red"))
         return False
 
 def save_working_proxies():
