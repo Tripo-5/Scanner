@@ -1,4 +1,4 @@
-from globals import global_scraped_proxies, global_tested_proxies, pause_event, stop_event
+from globals import global_scraped_proxies, global_tested_proxies, proxy_stats, pause_event, stop_event
 import socks
 import socket
 import os
@@ -25,15 +25,9 @@ for file_path in [unchecked_proxies_file, checked_proxies_file, proxy_sources_fi
         with open(file_path, "w") as f:
             f.write("")
 
-# Proxy testing statistics
-proxy_stats = {"total": 0, "testing": 0, "valid": 0, "dead": 0, "remaining": 0}
-
-# Limit for the number of proxies printed in terminal
-PRINT_LIMIT = 50
-
-# Deque to store the most recent proxies tested
-recent_proxies = deque(maxlen=PRINT_LIMIT)
-
+# Function to print live proxy statistics in the menu
+def update_proxy_stats():
+    proxy_stats["remaining"] = proxy_stats["total"] - (proxy_stats["valid"] + proxy_stats["dead"])
 
 def load_proxies():
     """Load proxies from the unchecked proxies file into global_scraped_proxies."""
