@@ -143,10 +143,13 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
 
 def print_status():
     """Update the terminal display dynamically with counters."""
-    print(f"\r{colored(f'Successful: {brute_stats['success']}', 'green')} | "
-          f"{colored(f'Failed: {brute_stats['failed']}', 'red')} | "
-          f"{colored(f'Remaining: {brute_stats['remaining']}', 'yellow')} | "
-          f"{colored(f'Total Attempts: {brute_stats['total_attempts']}', 'white')}", end="")
+    success_text = colored(f"Successful: {brute_stats['success']}", "green")
+    failed_text = colored(f"Failed: {brute_stats['failed']}", "red")
+    remaining_text = colored(f"Remaining: {brute_stats['remaining']}", "yellow")
+    total_attempts_text = colored(f"Total Attempts: {brute_stats['total_attempts']}", "white")
+
+    print(f"\r{success_text} | {failed_text} | {remaining_text} | {total_attempts_text}", end="")
+
 
     print("\nMost recent brute force attempts:")
     for attempt in reversed(recent_attempts):
