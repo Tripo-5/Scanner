@@ -76,62 +76,56 @@ def scrape_proxies():
 
 def test_proxies(proxies):
     """
-    Test proxies concurrently and store working ones in global_tested_proxies.
-
-    :param proxies: List of proxies to test
-    :return: List of working proxies
+    Test a list of proxies using multithreading.
+    
+    :param proxies: List of proxies in IP:Port format
     """
-    global global_tested_proxies
-    global_tested_proxies = []
+    print("[INFO] Starting proxy testing...")
+    results = []
 
-    if not proxies:
-        print("[ERROR] No proxies to test. Load proxies first.")
-        return []
+    # Ensure that the threads pause when Tor is being renewed
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
 
-    print("[INFO] Testing proxies...")
+        for future in tqdm(futures, desc="Testing Proxies", total=len(futures)):
+            # Handle pause during Tor renewal
+            while pause_event.is_set():
+                time.sleep(0.5)
+            # Check for stop event to gracefully terminate
+            if stop_event.is_set():
+                print("[INFO] Stopping proxy tests.")
+                break
+            future.result()  # Ensure any exceptions are raised and handled
+    print("[INFO] Proxy testing complete.")
 
-    def test_and_store(proxy):
-        while pause_event.is_set():
-            time.sleep(0.5)
-
-        if stop_event.is_set():
-            return None
-
-        try:
-            proxy_host, proxy_port = proxy
-            if test_single_proxy(proxy_host, int(proxy_port)):
-                return proxy
-        except ValueError:
-            print(f"[ERROR] Invalid proxy format: {proxy}")
-        return None
-
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        future_to_proxy = {executor.submit(test_and_store, proxy): proxy for proxy in proxies}
-        for future in tqdm(as_completed(future_to_proxy), total=len(proxies), desc="Testing Proxies"):
-            result = future.result()
-            if result:
-                global_tested_proxies.append(result)
-
-    print(f"[INFO] {len(global_tested_proxies)} working proxies found.")
-    save_working_proxies()
-    return global_tested_proxies
-
-def test_single_proxy(proxy_host, proxy_port):
+def test_single_proxy(proxy, test_url="http://example.com"):
     """
-    Test a single proxy by attempting to connect through it.
-
-    :param proxy_host: Proxy IP address
-    :param proxy_port: Proxy port
-    :return: True if the proxy works, False otherwise
+    Test a single proxy by attempting to access a URL.
+    
+    :param proxy: Proxy in IP:Port format
+    :param test_url: URL to test the proxy with
     """
+    proxy_host, proxy_port = proxy.split(":")
+    proxy_port = int(proxy_port)
+    
+    # Check if the scanning is paused or stopped
+    while pause_event.is_set():
+        time.sleep(0.5)
+
+    if stop_event.is_set():
+        print("[INFO] Stopping proxy testing.")
+        return
+
     try:
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
-        sock.settimeout(5)
-        sock.connect(("8.8.8.8", 53))  # Test against Google's public DNS
+        sock.settimeout(5)  # 5-second timeout for proxy connection
+        sock.connect((test_url, 80))  # Connecting to the test URL
         sock.close()
+        print(colored(f"[VALID] Proxy {proxy} works!", "green"))
         return True
-    except (socket.timeout, OSError):
+    except (socket.error, socks.ProxyError) as e:
+        print(colored(f"[ERROR] Proxy {proxy} failed: {e}", "red"))
         return False
 
 def save_working_proxies():
