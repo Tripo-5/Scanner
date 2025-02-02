@@ -37,7 +37,21 @@ def stats():
         "hosts": host_stats,
         "bruteforce": brute_stats,
         "tasks": len(active_tasks)
-    })    
+    })   
+@app.route("/proxies/test", methods=["POST"])
+def test_proxies_route():
+    test_proxies()
+    return jsonify({"message": "Proxy testing started!"})
+
+@app.route("/hosts/scan", methods=["POST"])
+def scan_hosts_route():
+    test_hosts()
+    return jsonify({"message": "Host scanning started!"})
+
+@app.route("/bruteforce/start", methods=["POST"])
+def start_bruteforce_route():
+    bruteforce_ssh()
+    return jsonify({"message": "Brute-force started!"})    
 
 if __name__ == "__main__":
     start_webapp()
