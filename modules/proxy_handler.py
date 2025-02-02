@@ -80,20 +80,42 @@ def scrape_proxies():
 # Test Proxies (Live Stats Only - No Detailed Output)
 def test_proxies(proxies):
     """
-    Test a list of proxies using multithreading.
-    Updates proxy statistics dynamically.
+    Test a list of proxies using multithreading and update statistics in real time.
     """
+    global proxy_stats
+
     if not proxies:
         print("[ERROR] No proxies to test. Load proxies first.")
         return []
 
-    print("[INFO] Starting proxy testing...")
-    
-    # Update total proxies in stats
     proxy_stats["total"] = len(proxies)
     proxy_stats["valid"] = 0
     proxy_stats["dead"] = 0
     proxy_stats["remaining"] = len(proxies)
+
+    print("[INFO] Starting proxy testing...")
+
+    # Use ThreadPoolExecutor for concurrent proxy testing
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
+
+        for future in tqdm(as_completed(futures), desc="Testing Proxies", total=len(futures)):
+            proxy = futures[future]
+            result = future.result()
+
+            if result:
+                proxy_stats["valid"] += 1
+            else:
+                proxy_stats["dead"] += 1
+
+            proxy_stats["remaining"] -= 1
+
+            # Update menu stats dynamically
+            display_statistics()
+
+    print(f"\n[INFO] Proxy testing complete.")
+    print(f"[INFO] Valid proxies: {proxy_stats['valid']}")
+    print(f"[INFO] Dead proxies: {proxy_stats['dead']}")
     
     def update_status():
         """ Update statistics live while scanning """
