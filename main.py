@@ -152,6 +152,7 @@ def main_menu():
         print(f"23.) Command and Control Center")
         print(f"24.) Start/Stop Tor Proxy")
         print(f"25.) Exit")
+        print(f"26.) Start/Stop WebServer at Your IP")
 
         choice = input("Enter your choice: ")
 
