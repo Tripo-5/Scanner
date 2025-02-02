@@ -4,6 +4,12 @@ import threading
 pause_event = threading.Event()
 stop_event = threading.Event()
 
+# Global Data Storage
+global_scraped_proxies = []  # Stores proxies before testing
+global_tested_proxies = []  # Stores successfully tested proxies
+global_hosts = []  # Stores loaded hosts
+global_live_hosts = []  # Stores live hosts after testing
+
 # Task Tracking
 active_tasks = {}
 
