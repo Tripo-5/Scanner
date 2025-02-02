@@ -9,7 +9,7 @@ import threading
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from termcolor import colored
-from main import display_statistics  # Import the function from main.py
+from modules.stats_handler import display_statistics, proxy_stats
 # Ensure proxy directory exists
 proxy_lists_dir = "proxy_lists"
 os.makedirs(proxy_lists_dir, exist_ok=True)
