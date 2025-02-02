@@ -163,9 +163,6 @@ def test_single_proxy(proxy):
         sock.close()
 
         return True
-    except Exception as e:
-        print(colored(f"[ERROR] Unexpected error testing proxy {proxy_host}:{proxy_port} - {e}", "red"))
-        return False
 
 def save_working_proxies():
     """
