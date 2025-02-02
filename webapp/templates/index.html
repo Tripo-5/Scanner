@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>Scanner Dashboard</h1>
+
+    <div class="stats">
+        <h2>System Statistics</h2>
+        <p>🟢 Active Background Tasks: {{ active_tasks|length }}</p>
+        <p>📡 Proxies: {{ proxy_stats['total'] }} Total | {{ proxy_stats['valid'] }} Valid | {{ proxy_stats['dead'] }} Dead | {{ proxy_stats['remaining'] }} Remaining</p>
+        <p>🌐 Hosts: {{ host_stats['total'] }} Total | {{ host_stats['valid'] }} Live | {{ host_stats['dead'] }} Dead | {{ host_stats['remaining'] }} Remaining</p>
+        <p>🔑 Brute-force: {{ brute_stats['running'] }} Running | {{ brute_stats['success'] }} Success | {{ brute_stats['failed'] }} Failed</p>
+    </div>
+
+    <button onclick="startScan('/start_proxy_test')">Start Proxy Test</button>
+    <button onclick="startScan('/start_host_scan')">Start Host Scan</button>
+    <button onclick="startScan('/start_bruteforce')">Start Brute-force</button>
+    <br><br>
+    <a href="{{ url_for('logout') }}">Logout</a>
+
+    <script>
+        function startScan(endpoint) {
+            fetch(endpoint)
+                .then(response => response.json())
+                .then(data => alert(data.message))
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>
