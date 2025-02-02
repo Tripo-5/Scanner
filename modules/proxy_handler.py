@@ -35,7 +35,7 @@ def load_proxies():
         return []
 
     with open(unchecked_proxies_file, "r") as file:
-        global_scraped_proxies = [line.strip().split(":") for line in file if line.strip()]
+        global_scraped_proxies = [line.strip() for line in file if line.strip()]
 
     print(f"[INFO] Loaded {len(global_scraped_proxies)} proxies from {unchecked_proxies_file}.")
     return global_scraped_proxies
