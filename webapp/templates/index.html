@@ -4,20 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scanner Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav>
-        <h1>Scanner Dashboard</h1>
-    </nav>
-
-    <section class="stats">
-        <h2>System Statistics</h2>
-        <p>📡 Proxies: <span id="proxy-count">Loading...</span></p>
-        <p>🌐 Hosts: <span id="host-count">Loading...</span></p>
-        <p>🔑 Brute-force Attempts: <span id="brute-count">Loading...</span></p>
-    </section>
-
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <h1>Welcome to the Scanner Web Interface</h1>
+    <p>Click <a href="/stats">here</a> to view system stats.</p>
 </body>
 </html>
