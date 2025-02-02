@@ -115,10 +115,10 @@ def scan_hosts():
 
 def print_status():
     """Update the terminal display dynamically with counters."""
-    print(f"\r{colored(f'Successful Scans: {scan_stats['scanned']}', 'green')} | "
-          f"{colored(f'Failed: {scan_stats['failed']}', 'red')} | "
-          f"{colored(f'Remaining: {scan_stats['remaining']}', 'yellow')} | "
-          f"{colored(f'Total: {scan_stats['total']}', 'white')}", end="")
+    print(f"\r{colored(f'Successful Scans: {scan_stats['\"scanned\"']}', 'green')} | "
+          f"{colored(f'Failed: {scan_stats[\"failed\"]}', 'red')} | "
+          f"{colored(f'Remaining: {scan_stats[\"remaining\"]}', 'yellow')} | "
+          f"{colored(f'Total: {scan_stats[\"total\"]}', 'white')}", end="")
 
     print("\nMost recent scanned hosts:")
     for scan_info in reversed(recent_scans):
