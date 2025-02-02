@@ -41,6 +41,7 @@ from modules.go_bruteforce import run_golang_bruteforce
 from modules.stats_handler import display_statistics
 
 import os
+import subprocess
 import keyboard
 import threading
 from termcolor import colored
@@ -64,6 +65,10 @@ web_config = {
 }
 
 
+def clear_screen():
+    """Cross-platform clear screen function."""
+    os.system("cls" if os.name == "nt" else "clear")
+    
 def stop_all_background_tasks():
     """Gracefully stop all running background tasks."""
     print("[INFO] Stopping all background tasks...")
@@ -102,7 +107,7 @@ def status_text(task_name):
     if task_name in active_tasks and active_tasks[task_name].is_alive():
         return colored("[CURRENTLY RUNNING]", "green")
     return ""
-
+    
 def display_statistics():
     """Show system stats dynamically with color enhancements."""
     os.system("clear")  # Clear screen
@@ -127,9 +132,10 @@ def display_statistics():
           f"{colored(brute_stats.get('success', 0), 'green')} Success | "
           f"{colored(brute_stats.get('failed', 0), 'red')} Failed\n")
     
+
 def main_menu():
     while True:
-        print("\033[H\033[J", end="")  # Clear screen
+        clear_screen()
         display_statistics()
 
         print("\n[ Main Menu ]")
