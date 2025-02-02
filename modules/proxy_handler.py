@@ -81,41 +81,43 @@ def scrape_proxies():
 # Test Proxies (Live Stats Only - No Detailed Output)
 def test_proxies(proxies):
     """
-    Test a list of proxies using multithreading while updating live stats.
-    No direct printout of proxy success/failure, only stats update.
+    Test a list of proxies using multithreading.
+    Updates proxy statistics dynamically.
     """
-
     if not proxies:
         print("[ERROR] No proxies to test. Load proxies first.")
         return []
 
-    print("[INFO] Proxy testing started in background. Stats will update in menu.")
-
-    # Initialize proxy stats
+    print("[INFO] Starting proxy testing...")
+    
+    # Update total proxies in stats
     proxy_stats["total"] = len(proxies)
     proxy_stats["valid"] = 0
     proxy_stats["dead"] = 0
     proxy_stats["remaining"] = len(proxies)
-
+    
+    def update_status():
+        """ Update statistics live while scanning """
+        proxy_stats["remaining"] = proxy_stats["total"] - (proxy_stats["valid"] + proxy_stats["dead"])
+    
+    # Multithreading to test proxies
     with ThreadPoolExecutor(max_workers=50) as executor:
         futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
 
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Proxies", leave=False):
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Proxies"):
             proxy = futures[future]
             result = future.result()
 
-            # Update proxy stats instead of printing results
             if result:
-                proxy_stats["valid"] += 1
+                proxy_stats["valid"] += 1  # Update valid proxies count
             else:
-                proxy_stats["dead"] += 1
-            
-            # Update remaining proxies count
-            update_proxy_stats()
+                proxy_stats["dead"] += 1  # Update dead proxies count
+
+            update_status()  # Refresh remaining count
 
     print(f"\n[INFO] Proxy testing complete. Valid: {proxy_stats['valid']} | Dead: {proxy_stats['dead']}")
-    return proxy_stats["valid"], proxy_stats["dead"]
-
+    return global_tested_proxies  # Return list of working proxies
+    
     def background_testing():
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
