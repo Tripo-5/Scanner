@@ -51,6 +51,43 @@ proxy_stats = {"total": 0, "testing": 0, "valid": 0, "dead": 0, "remaining": 0}
 host_stats = {"total": 0, "scanning": 0, "valid": 0, "dead": 0, "remaining": 0}
 brute_stats = {"running": 0, "success": 0, "failed": 0}
 
+def stop_all_background_tasks():
+    """
+    Gracefully stop all running background tasks.
+    """
+    print("[INFO] Stopping all background tasks...")
+    for task_name, thread in active_tasks.items():
+        if thread.is_alive():
+            print(f"[INFO] Stopping {task_name}...")
+            stop_event.set()  # Signal all running scans to stop
+            thread.join()
+
+def toggle_background_task(task_name, function, *args):
+    """
+    Manage background tasks:
+    - Start new task if not running
+    - Resume existing task if already running
+    - Stop task if user requests
+
+    :param task_name: Unique name for the background task
+    :param function: Function to execute
+    :param args: Arguments to pass to the function
+    """
+    if task_name in active_tasks and active_tasks[task_name].is_alive():
+        print(f"[INFO] Resuming {task_name}...")
+        active_tasks[task_name].join()  # Bring user back to running scan
+    else:
+        print(f"[INFO] Starting {task_name} in background...")
+        thread = threading.Thread(target=function, args=args, daemon=True)
+        active_tasks[task_name] = thread
+        thread.start()
+def status_text(task_name):
+    """
+    Display 'CURRENTLY RUNNING' status in green for active tasks.
+    """
+    if task_name in active_tasks and active_tasks[task_name].is_alive():
+        return colored("[CURRENTLY RUNNING]", "green")
+    return ""        
 
 def main_menu():
     while True:
