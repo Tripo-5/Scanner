@@ -77,7 +77,6 @@ def scrape_proxies():
     print(f"[INFO] Scraped {len(scraped_proxies)} valid proxies and saved to {unchecked_proxies_file}.")
 
 
-# Test Proxies (Live Stats Only - No Detailed Output)
 def test_proxies(proxies):
     """
     Test a list of proxies using multithreading and update statistics in real time.
@@ -94,21 +93,22 @@ def test_proxies(proxies):
     proxy_stats["remaining"] = len(proxies)
 
     print("[INFO] Starting proxy testing...")
+    display_statistics()  # Show stats before testing starts
 
-    with ThreadPoolExecutor(max_workers=30) as executor:  # Reduce max workers to prevent overload
+    with ThreadPoolExecutor(max_workers=30) as executor:
         futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
 
         for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Proxies"):
             if stop_event.is_set():
                 print("[INFO] Stopping proxy testing.")
-                break  # Exit if stop is triggered
+                break
 
-            while pause_event.is_set():  # Handle pausing properly
+            while pause_event.is_set():
                 time.sleep(0.5)
 
             try:
                 proxy = futures[future]
-                result = future.result(timeout=10)  # Ensure proxy doesn't block forever
+                result = future.result(timeout=10)
 
                 if result:
                     proxy_stats["valid"] += 1
@@ -116,7 +116,7 @@ def test_proxies(proxies):
                     proxy_stats["dead"] += 1
 
                 proxy_stats["remaining"] -= 1
-                display_statistics()  # Refresh menu dynamically
+                display_statistics()  # ✅ Update the menu dynamically
 
             except Exception as e:
                 print(colored(f"[ERROR] Proxy test failed: {e}", "red"))
