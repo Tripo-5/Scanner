@@ -2,17 +2,11 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 import threading
 import os
 import sqlite3
-from globals import web_config, active_tasks, proxy_stats, host_stats, brute_stats
 from modules.proxy_handler import test_proxies, load_proxies
 from modules.host_handler import test_hosts, load_hosts
 from modules.bruteforce import bruteforce_ssh
 import sys
 import os
-
-# Ensure the script can find `globals.py`
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(BASE_DIR)
-
 from globals import web_config, active_tasks, proxy_stats, host_stats, brute_stats
 
 app = Flask(__name__)
