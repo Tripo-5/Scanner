@@ -26,7 +26,7 @@ for file_path in [unchecked_proxies_file, checked_proxies_file, proxy_sources_fi
             f.write("")
 
 # Limit for the number of proxies printed in terminal
-PRINT_LIMIT = 20
+PRINT_LIMIT = 50
 
 # Deque to store the most recent proxies tested
 recent_proxies = deque(maxlen=PRINT_LIMIT)
