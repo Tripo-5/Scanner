@@ -105,7 +105,7 @@ def test_proxies(proxies):
             print(f"[ERROR] Invalid proxy format: {proxy}")
         return None
 
-    with ThreadPoolExecutor(max_workers=20) as executor:
+    with ThreadPoolExecutor(max_workers=50) as executor:
         future_to_proxy = {executor.submit(test_and_store, proxy): proxy for proxy in proxies}
         for future in tqdm(as_completed(future_to_proxy), total=len(proxies), desc="Testing Proxies"):
             result = future.result()
