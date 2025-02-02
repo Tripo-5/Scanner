@@ -164,24 +164,33 @@ def load_previous_hosts():
     return global_hosts
 
 # Test individual host connectivity using SOCKS5 proxy
+# Fix: Correctly apply proxies & validate format
 def test_single_host(host, proxy=None, min_delay=1, max_delay=3):
     """
     Test a single host's connectivity via a SOCKS5 proxy with random delay.
 
     :param host: Target host to test
-    :param proxy: SOCKS5 proxy to use
+    :param proxy: SOCKS5 proxy to use (IP:PORT)
     :param min_delay: Minimum delay between scans (seconds)
     :param max_delay: Maximum delay between scans (seconds)
     """
     global counter_valid, counter_dead, counter_remaining
 
     try:
+        sock = socks.socksocket()
+        
+        # Validate and set proxy
         if proxy:
+            if isinstance(proxy, list):  
+                proxy = ":".join(proxy)  # Convert ["IP", "PORT"] to "IP:PORT"
+            
             proxy_host, proxy_port = proxy.split(":")
             proxy_port = int(proxy_port)
 
-        sock = socks.socksocket()
-        if proxy:
+            if not (0 <= proxy_port <= 65535):
+                print(colored(f"[ERROR] Invalid proxy port: {proxy_port}", "red"))
+                return
+
             sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
 
         while pause_event.is_set():
@@ -192,7 +201,7 @@ def test_single_host(host, proxy=None, min_delay=1, max_delay=3):
             return
 
         sock.settimeout(5)
-        sock.connect((host, 22))
+        sock.connect((host, 22))  # Try connecting to SSH port
         sock.close()
 
         with lock:
@@ -203,7 +212,19 @@ def test_single_host(host, proxy=None, min_delay=1, max_delay=3):
             counter_valid += 1
             counter_remaining -= 1
             display_counters()
-            print(colored(f"[VALID] {host} (via SOCKS proxy {proxy})", "green"))
+            print(colored(f"[VALID] {host} (via {proxy})", "green"))
+
+    except Exception as e:
+        with lock:
+            counter_dead += 1
+            counter_remaining -= 1
+            display_counters()
+        print(colored(f"[DEAD] {host} (via {proxy}) - {e}", "red"))
+
+    # Introduce random delay between scans
+    delay = random.uniform(min_delay, max_delay)
+    time.sleep(delay)
+
 
     except Exception:
         with lock:
@@ -240,14 +261,15 @@ def test_hosts(hosts, proxies):
     counter_total = len(hosts)
     counter_remaining = len(hosts)
 
+    # Clear previous live hosts file
     with open("results/live_hosts.txt", "w"):
         pass
 
     display_counters()
 
-    proxy_cycle = cycle(proxies)
+    proxy_cycle = cycle(proxies)  # Cycle through proxies correctly
 
-    with ThreadPoolExecutor(max_workers=12) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {executor.submit(test_single_host, host, next(proxy_cycle)): host for host in hosts}
 
         for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Hosts"):
