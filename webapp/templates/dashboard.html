@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+    <h2>Scanner Dashboard</h2>
+    <p><strong>Proxies:</strong> {{ proxy_stats['valid'] }} Valid | {{ proxy_stats['dead'] }} Dead | {{ proxy_stats['remaining'] }} Remaining</p>
+    <p><strong>Hosts:</strong> {{ host_stats['valid'] }} Live | {{ host_stats['dead'] }} Dead</p>
+    <p><strong>Brute-force:</strong> {{ brute_stats['running'] }} Running | {{ brute_stats['success'] }} Success</p>
+    <a href="{{ url_for('logout') }}">Logout</a>
+</body>
+</html>
