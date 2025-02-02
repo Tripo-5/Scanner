@@ -123,7 +123,6 @@ def display_statistics():
           f"{colored(brute_stats.get('success', 0), 'green')} Success | "
           f"{colored(brute_stats.get('failed', 0), 'red')} Failed\n")
 
-
 def main_menu():
     while True:
         print("\033[H\033[J", end="")  # Clear screen
