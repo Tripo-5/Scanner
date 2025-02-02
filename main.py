@@ -210,32 +210,37 @@ def main_menu():
             configure_settings()
         elif choice == "25":
             stop_all_background_tasks()
-        elif choice == "26":  # Start/Stop Web Server
+        if choice == "26":  # Start/Stop Web Server
             if not web_config["enabled"]:
                 web_config["enabled"] = True
                 print("[INFO] Starting Web Interface...")
 
-                # Start the Flask Web Server in the background
-                os.system("nohup python3 webapp/app.py > web.log 2>&1 &")
-                print("[INFO] Web Server started at http://localhost:5000")
+                # Start Flask Web Server in background
+                if os.name == "nt":  # Windows
+                    subprocess.Popen(["python", "webapp/app.py"], creationflags=subprocess.CREATE_NEW_CONSOLE)
+                else:  # Linux/macOS
+                    subprocess.Popen(["nohup", "python3", "webapp/app.py"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                print(f"[INFO] Web Server started at http://{web_config['host']}:{web_config['port']}")
 
             else:
                 web_config["enabled"] = False
                 print("[INFO] Stopping Web Interface...")
 
-                # Stop the Flask server (Linux-based)
-                os.system("pkill -f webapp/app.py")
+                # Stop Flask server
+                if os.name == "nt":  # Windows
+                    subprocess.call(["taskkill", "/F", "/IM", "python.exe"])
+                else:
+                    os.system("pkill -f webapp/app.py")
                 print("[INFO] Web Server stopped.")
 
-
-
-
 def setup_keyboard_controls():
-    keyboard.add_hotkey("F5", lambda: pause_event.set() if not pause_event.is_set() else pause_event.clear())
-    keyboard.add_hotkey("F6", lambda: stop_event.set())
-    keyboard.add_hotkey("F7", return_to_main)
-    print("[INFO] Press F5 to pause/resume, F6 to stop scanning, and F7 to return to menu.")
-
+    try:
+        keyboard.add_hotkey("F5", lambda: pause_event.set() if not pause_event.is_set() else pause_event.clear())
+        keyboard.add_hotkey("F6", lambda: stop_event.set())
+        keyboard.add_hotkey("F7", return_to_main)
+        print("[INFO] Press F5 to pause/resume, F6 to stop scanning, and F7 to return to menu.")
+    except:
+        print("[WARNING] Keyboard hotkeys not available in this environment.")
 
 setup_keyboard_controls()
 
