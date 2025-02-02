@@ -95,27 +95,39 @@ def test_proxies(proxies):
 
     print("[INFO] Starting proxy testing...")
 
-    # Use ThreadPoolExecutor for concurrent proxy testing
-    with ThreadPoolExecutor(max_workers=50) as executor:
+    with ThreadPoolExecutor(max_workers=30) as executor:  # Reduce max workers to prevent overload
         futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
 
-        for future in tqdm(as_completed(futures), desc="Testing Proxies", total=len(futures)):
-            proxy = futures[future]
-            result = future.result()
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Proxies"):
+            if stop_event.is_set():
+                print("[INFO] Stopping proxy testing.")
+                break  # Exit if stop is triggered
 
-            if result:
-                proxy_stats["valid"] += 1
-            else:
+            while pause_event.is_set():  # Handle pausing properly
+                time.sleep(0.5)
+
+            try:
+                proxy = futures[future]
+                result = future.result(timeout=10)  # Ensure proxy doesn't block forever
+
+                if result:
+                    proxy_stats["valid"] += 1
+                else:
+                    proxy_stats["dead"] += 1
+
+                proxy_stats["remaining"] -= 1
+                display_statistics()  # Refresh menu dynamically
+
+            except Exception as e:
+                print(colored(f"[ERROR] Proxy test failed: {e}", "red"))
                 proxy_stats["dead"] += 1
-
-            proxy_stats["remaining"] -= 1
-
-            # Update menu stats dynamically
-            display_statistics()
+                proxy_stats["remaining"] -= 1
+                display_statistics()
 
     print(f"\n[INFO] Proxy testing complete.")
     print(f"[INFO] Valid proxies: {proxy_stats['valid']}")
     print(f"[INFO] Dead proxies: {proxy_stats['dead']}")
+
     
     def update_status():
         """ Update statistics live while scanning """
