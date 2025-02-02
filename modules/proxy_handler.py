@@ -8,6 +8,7 @@ import threading
 from tqdm import tqdm
 from collections import deque
 from globals import global_scraped_proxies, global_tested_proxies, pause_event, stop_event
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Ensure proxy directory exists
 proxy_lists_dir = "proxy_lists"
