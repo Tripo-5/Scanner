@@ -9,7 +9,6 @@ import threading
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from termcolor import colored
-from collections import deque
 
 # Ensure proxy directory exists
 proxy_lists_dir = "proxy_lists"
