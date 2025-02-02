@@ -163,17 +163,18 @@ def print_status():
 def test_single_proxy(proxy):
     """
     Test a single proxy by attempting to connect to a test server.
-    Updates stats but does NOT print individual results.
-    """
 
+    :param proxy: Proxy in IP:Port format
+    :return: Boolean (True if successful, False if failed)
+    """
     while pause_event.is_set():
         time.sleep(0.5)
 
     if stop_event.is_set():
-        return False
+        return False  # Stop testing
 
     try:
-        # Ensure proxy is in the correct format
+        # Ensure correct proxy format
         if isinstance(proxy, list):
             proxy = ":".join(proxy)
 
@@ -181,19 +182,19 @@ def test_single_proxy(proxy):
         proxy_port = int(proxy_port)
 
         if not (0 <= proxy_port <= 65535):
-            return False
+            return False  # Invalid proxy
 
-        # Set up SOCKS5 proxy
+        # Set up SOCKS5 proxy using the provided proxy
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
         sock.settimeout(5)
         sock.connect(("httpbin.org", 80))
         sock.close()
-        return True
+        return True  # Proxy is valid
 
     except (socket.error, socks.ProxyError):
-        return False
-
+        return False  # Proxy is dead
+        
 def save_working_proxies():
     """Save the working proxies to the checked proxies file."""
     with open(checked_proxies_file, "w") as file:
