@@ -214,28 +214,20 @@ def test_single_host(host, proxy=None, min_delay=1, max_delay=3):
             display_counters()
             print(colored(f"[VALID] {host} (via {proxy})", "green"))
 
-    except Exception as e:
+    except (socket.timeout, socks.ProxyError, socks.GeneralProxyError) as e:
         with lock:
             counter_dead += 1
             counter_remaining -= 1
             display_counters()
         print(colored(f"[DEAD] {host} (via {proxy}) - {e}", "red"))
 
-    # Introduce random delay between scans
-    delay = random.uniform(min_delay, max_delay)
-    time.sleep(delay)
+    except Exception as e:
+        print(colored(f"[ERROR] Unexpected error testing {host}: {e}", "red"))
 
-
-    except Exception:
-        with lock:
-            counter_dead += 1
-            counter_remaining -= 1
-            display_counters()
-        print(colored(f"[DEAD] {host} (via SOCKS proxy {proxy})", "red"))
-
-    delay = random.uniform(min_delay, max_delay)
-    time.sleep(delay)
-
+    finally:
+        # Introduce random delay between scans
+        delay = random.uniform(min_delay, max_delay)
+        time.sleep(delay)
 # Multithreaded host testing
 def test_hosts(hosts, proxies):
     """
