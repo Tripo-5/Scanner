@@ -88,6 +88,10 @@ def test_proxies(proxies):
     valid_proxies = 0
     invalid_proxies = 0
 
+    # Limit for the number of proxies printed in terminal
+    PRINT_LIMIT = 20
+    recent_proxies = deque(maxlen=PRINT_LIMIT)  # Store the most recent proxies tested
+
     # Use ThreadPoolExecutor for concurrent proxy testing
     with ThreadPoolExecutor(max_workers=50) as executor:
         futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
@@ -96,38 +100,40 @@ def test_proxies(proxies):
         for future in tqdm(futures, desc="Testing Proxies", total=len(futures)):
             result = future.result()
 
+            # Update counters and display status
             if result:
                 valid_proxies += 1
+                status = 'Valid'
                 print(colored(f"[VALID] Proxy {futures[future]} works!", "green"))
             else:
                 invalid_proxies += 1
+                status = 'Dead'
                 print(colored(f"[ERROR] Proxy {futures[future]} failed!", "red"))
 
-            # Add the current proxy to the deque
-            recent_proxies.append(futures[future])
+            # Add the current proxy to the deque for recent proxy display
+            recent_proxies.append(f"{futures[future]} - {status}")
 
             # Update the output with colored statistics and limited proxies
             print(f"\r{colored(f'Valid Proxies: {valid_proxies}', 'green')} | "
                   f"{colored(f'Invalid Proxies: {invalid_proxies}', 'red')}   "
-                  f"{colored(f'Total: {valid_proxies + invalid_proxies}', 'white')}", end="")
+                  f"{colored(f'Total: {valid_proxies + invalid_proxies}', 'white')}   "
+                  f"{colored(f'Remaining: {len(proxies) - valid_proxies - invalid_proxies}', 'yellow')}", end="")
 
             # Print the most recent proxies (up to the PRINT_LIMIT)
             print("\nMost recent proxies tested:")
             for proxy in reversed(recent_proxies):
-                print(colored(f"{proxy}", "yellow"))
+                # Display each proxy with status (valid or dead) in color
+                ip, port, status = proxy.split(" - ")
+                if status == "Valid":
+                    print(colored(f"{ip}:{port} - {status}", "green"))
+                else:
+                    print(colored(f"{ip}:{port} - {status}", "red"))
 
     print(f"\n[INFO] Proxy testing complete.")
     print(f"[INFO] Valid proxies: {valid_proxies}")
     print(f"[INFO] Invalid proxies: {invalid_proxies}")
 
     return valid_proxies, invalid_proxies
-
-
-# Limit for the number of proxies printed in terminal
-PRINT_LIMIT = 20
-
-# Deque to store the most recent proxies tested
-recent_proxies = deque(maxlen=PRINT_LIMIT)
 
 def test_single_proxy(proxy):
     """
@@ -215,3 +221,4 @@ def add_proxy_sources():
         for source in new_sources:
             file.write(source + "\n")
     print(f"[INFO] Added {len(new_sources)} new proxy sources to {proxy_sources_file}.")
+
