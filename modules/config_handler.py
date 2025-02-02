@@ -127,27 +127,17 @@ def renew_tor_connection():
     This will pause scanning, renew the connection, and then resume scanning.
     """
     print("[INFO] Renewing Tor connection...")
-
-    # Pause scanning while renewing the Tor connection
-    pause_event.set()
-
+    pause_event.set()  # Pause scanning while renewing the connection
     try:
-        # Using subprocess instead of os.system for better control
-        print("[INFO] Sending signal to Tor to get a new identity...")
-        subprocess.run(["sudo", "systemctl", "reload", "tor"], check=True)
-        
-        # Give Tor some time to reconnect
-        time.sleep(3)
+        subprocess.run(
+            ["sudo", "systemctl", "reload", "tor"], check=True
+        )  # Reload the Tor service to renew IP
+        time.sleep(3)  # Allow Tor to reconnect
         print("[INFO] Tor connection renewed successfully.")
-        
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] Failed to renew Tor connection: {e}")
-
-    except Exception as e:
-        print(f"[ERROR] Unexpected error during Tor renewal: {e}")
-    
-    # Resume scanning
-    pause_event.clear()
+    finally:
+        pause_event.clear()  # Resume scanning after renewal
 
 
 def auto_renew_tor():
