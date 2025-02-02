@@ -3,100 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Web Interface</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script>
-        function refreshStats() {
-            fetch('/stats')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('proxy_stats').innerHTML = `📡 Proxies: ${data.proxy.total} Total | 
-                        <span class="green">${data.proxy.valid} Valid</span> | 
-                        <span class="red">${data.proxy.dead} Dead</span> | 
-                        <span class="yellow">${data.proxy.remaining} Remaining</span>`;
-
-                    document.getElementById('host_stats').innerHTML = `🌐 Hosts: ${data.host.total} Total | 
-                        <span class="green">${data.host.valid} Live</span> | 
-                        <span class="red">${data.host.dead} Dead</span> | 
-                        <span class="yellow">${data.host.remaining} Remaining</span>`;
-
-                    document.getElementById('brute_stats').innerHTML = `🔑 Bruteforce: ${data.brute.running} Running | 
-                        <span class="green">${data.brute.success} Success</span> | 
-                        <span class="red">${data.brute.failed} Failed</span>`;
-
-                    document.getElementById('active_tasks').innerText = `🟢 Active Background Tasks: ${data.active_tasks}`;
-                })
-                .catch(error => console.error('Error fetching stats:', error));
+    <title>Scanner Dashboard</title>
+    
+    <!-- Bootstrap 5 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
+    <!-- FontAwesome Icons -->
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    
+    <!-- Custom Styles -->
+    <style>
+        body {
+            background-color: #1e1e2f;
+            color: white;
         }
-
-        setInterval(refreshStats, 5000); // Auto-refresh stats every 5 seconds
-    </script>
+        .card {
+            background-color: #2a2a3c;
+            border: none;
+            border-radius: 10px;
+        }
+        .btn-custom {
+            background-color: #007bff;
+            border: none;
+        }
+        .btn-custom:hover {
+            background-color: #0056b3;
+        }
+        .stats-box {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
 </head>
-<body onload="refreshStats()">
-    <header>
-        <h1>Scanner Web Interface</h1>
-        <p>Manage & Monitor Proxy Scanning, Host Testing, and Brute-force Attacks</p>
-    </header>
+<body>
 
-    <section class="stats">
-        <h2>System Statistics</h2>
-        <p id="active_tasks">🟢 Active Background Tasks: 0</p>
-        <p id="proxy_stats">📡 Proxies: Loading...</p>
-        <p id="host_stats">🌐 Hosts: Loading...</p>
-        <p id="brute_stats">🔑 Bruteforce: Loading...</p>
-    </section>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🔎 Scanner Dashboard</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-    <section class="controls">
-        <h2>Proxy Management</h2>
-        <form action="/proxies/load" method="post">
-            <button type="submit">Load Proxies</button>
-        </form>
-        <form action="/proxies/test" method="post">
-            <button type="submit">Test Proxies</button>
-        </form>
-        <form action="/proxies/clear" method="post">
-            <button type="submit">Clear Proxies</button>
-        </form>
-    </section>
+    <div class="container mt-4">
+        <h2 class="text-center mb-4">📊 System Statistics</h2>
 
-    <section class="controls">
-        <h2>Host Scanning</h2>
-        <form action="/hosts/load" method="post">
-            <button type="submit">Load Hosts</button>
-        </form>
-        <form action="/hosts/test" method="post">
-            <button type="submit">Test Hosts</button>
-        </form>
-        <form action="/hosts/scan" method="post">
-            <button type="submit">Scan Hosts</button>
-        </form>
-    </section>
+        <!-- Stats Row -->
+        <div class="row text-center">
+            <div class="col-md-4 mb-3">
+                <div class="stats-box">
+                    <i class="fas fa-tasks"></i> Active Tasks: <span id="active_tasks">{{ active_tasks }}</span>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stats-box">
+                    <i class="fas fa-globe"></i> Live Hosts: <span id="live_hosts">{{ host_stats['valid'] }}</span>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stats-box">
+                    <i class="fas fa-shield-alt"></i> Proxies Tested: <span id="proxies_tested">{{ proxy_stats['valid'] }}</span>
+                </div>
+            </div>
+        </div>
 
-    <section class="controls">
-        <h2>Bruteforce Attacks</h2>
-        <form action="/bruteforce/python" method="post">
-            <button type="submit">Python SSH Bruteforce</button>
-        </form>
-        <form action="/bruteforce/golang" method="post">
-            <button type="submit">Golang SSH Bruteforce</button>
-        </form>
-    </section>
+        <!-- Action Cards -->
+        <div class="row">
+            <!-- Proxy Management -->
+            <div class="col-md-4">
+                <div class="card p-3">
+                    <h5 class="text-center"><i class="fas fa-network-wired"></i> Proxy Management</h5>
+                    <button class="btn btn-success w-100 mt-2" onclick="startProxyTesting()">Test Proxies</button>
+                    <button class="btn btn-info w-100 mt-2" onclick="loadProxies()">Load Proxies</button>
+                    <button class="btn btn-danger w-100 mt-2" onclick="clearProxies()">Clear Proxies</button>
+                </div>
+            </div>
 
-    <section class="controls">
-        <h2>Web Server & Tor Proxy</h2>
-        <form action="/webserver/toggle" method="post">
-            <button type="submit">Toggle Web Server</button>
-        </form>
-        <form action="/tor/start" method="post">
-            <button type="submit">Start Tor</button>
-        </form>
-        <form action="/tor/renew" method="post">
-            <button type="submit">Renew Tor IP</button>
-        </form>
-    </section>
+            <!-- Host Scanning -->
+            <div class="col-md-4">
+                <div class="card p-3">
+                    <h5 class="text-center"><i class="fas fa-server"></i> Host Scanning</h5>
+                    <button class="btn btn-success w-100 mt-2" onclick="startHostScan()">Scan Hosts</button>
+                    <button class="btn btn-info w-100 mt-2" onclick="loadHosts()">Load Hosts</button>
+                    <button class="btn btn-danger w-100 mt-2" onclick="clearHosts()">Clear Hosts</button>
+                </div>
+            </div>
 
-    <footer>
-        <p>&copy; 2025 Scanner Web Application | Developed for Automation</p>
-    </footer>
+            <!-- Bruteforce -->
+            <div class="col-md-4">
+                <div class="card p-3">
+                    <h5 class="text-center"><i class="fas fa-key"></i> Brute-force</h5>
+                    <button class="btn btn-warning w-100 mt-2" onclick="startPythonBrute()">Python Brute-force</button>
+                    <button class="btn btn-danger w-100 mt-2" onclick="startGolangBrute()">Golang Brute-force</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOR & WebServer Controls -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card p-3">
+                    <h5 class="text-center"><i class="fas fa-user-secret"></i> TOR Control</h5>
+                    <button class="btn btn-success w-100 mt-2" onclick="startTor()">Start TOR</button>
+                    <button class="btn btn-warning w-100 mt-2" onclick="renewTor()">Renew IP</button>
+                    <button class="btn btn-danger w-100 mt-2" onclick="stopTor()">Stop TOR</button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card p-3">
+                    <h5 class="text-center"><i class="fas fa-server"></i> Web Server Control</h5>
+                    <button class="btn btn-success w-100 mt-2" onclick="toggleWebServer()">Start/Stop Web Server</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for Button Actions -->
+    <script>
+        function startProxyTesting() { fetch('/proxies/test', { method: 'POST' }).then(() => location.reload()); }
+        function loadProxies() { fetch('/proxies/load', { method: 'POST' }).then(() => location.reload()); }
+        function clearProxies() { fetch('/proxies/clear', { method: 'POST' }).then(() => location.reload()); }
+
+        function startHostScan() { fetch('/hosts/scan', { method: 'POST' }).then(() => location.reload()); }
+        function loadHosts() { fetch('/hosts/load', { method: 'POST' }).then(() => location.reload()); }
+        function clearHosts() { fetch('/hosts/clear', { method: 'POST' }).then(() => location.reload()); }
+
+        function startPythonBrute() { fetch('/bruteforce/python', { method: 'POST' }).then(() => location.reload()); }
+        function startGolangBrute() { fetch('/bruteforce/golang', { method: 'POST' }).then(() => location.reload()); }
+
+        function startTor() { fetch('/tor/start', { method: 'POST' }).then(() => location.reload()); }
+        function renewTor() { fetch('/tor/renew', { method: 'POST' }).then(() => location.reload()); }
+        function stopTor() { fetch('/tor/stop', { method: 'POST' }).then(() => location.reload()); }
+
+        function toggleWebServer() { fetch('/web/toggle', { method: 'POST' }).then(() => location.reload()); }
+    </script>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
