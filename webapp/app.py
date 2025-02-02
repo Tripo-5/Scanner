@@ -214,6 +214,50 @@ def stop_listeners_route():
     stop_listeners()
     flash("Stopped All Listeners!", "success")
     return redirect(url_for('dashboard'))    
+@app.route("/stats")
+def get_stats():
+    """Return system statistics for the web app"""
+    return jsonify({
+        "proxy": proxy_stats,
+        "host": host_stats,
+        "brute": brute_stats,
+        "active_tasks": len(active_tasks),
+    })
+
+@app.route("/proxies/load", methods=["POST"])
+def load_proxies_route():
+    global_scraped_proxies[:] = load_proxies()
+    return redirect("/")
+
+@app.route("/proxies/test", methods=["POST"])
+def test_proxies_route():
+    toggle_background_task("proxy_test", test_proxies, global_scraped_proxies)
+    return redirect("/")
+
+@app.route("/hosts/load", methods=["POST"])
+def load_hosts_route():
+    global_hosts[:] = load_hosts()
+    return redirect("/")
+
+@app.route("/hosts/test", methods=["POST"])
+def test_hosts_route():
+    toggle_background_task("host_test", test_hosts, global_hosts, global_tested_proxies)
+    return redirect("/")
+
+@app.route("/hosts/scan", methods=["POST"])
+def scan_hosts_route():
+    toggle_background_task("host_scan", scan_hosts)
+    return redirect("/")
+
+@app.route("/bruteforce/python", methods=["POST"])
+def python_brute_route():
+    toggle_background_task("python_brute", bruteforce_ssh, global_live_hosts)
+    return redirect("/")
+
+@app.route("/bruteforce/golang", methods=["POST"])
+def golang_brute_route():
+    toggle_background_task("go_brute", run_golang_bruteforce, global_live_hosts)
+    return redirect("/")    
 
 if __name__ == '__main__':
     init_db()
