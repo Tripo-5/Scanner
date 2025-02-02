@@ -25,3 +25,29 @@ global_config = {
 # Pause and Stop events for controlling execution flow
 pause_event = threading.Event()
 stop_event = threading.Event()
+
+# Global dictionary for proxy statistics
+proxy_stats = {
+    "total": 0,
+    "valid": 0,
+    "dead": 0,
+    "remaining": 0
+}
+
+# Global dictionary for host scanning statistics
+host_stats = {
+    "total": 0,
+    "valid": 0,
+    "dead": 0,
+    "remaining": 0
+}
+
+# Global dictionary for brute-force statistics
+brute_stats = {
+    "running": 0,
+    "success": 0,
+    "failed": 0,
+    "remaining": 0,
+    "total_attempts": 0
+}
+
