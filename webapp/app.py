@@ -12,6 +12,10 @@ from modules.host_handler import load_hosts, test_hosts
 from modules.bruteforce import bruteforce_ssh
 from modules.scanner import scan_hosts
 from modules.config_handler import configure_settings
+from flask import Flask, jsonify
+from modules.proxy_handler import (
+    scrape_proxies, load_proxies, test_proxies, load_checked_proxies, save_working_proxies
+)
 
 # **Define Flask App**
 app = Flask(__name__)
@@ -38,10 +42,44 @@ def stats():
         "bruteforce": brute_stats,
         "tasks": len(active_tasks)
     })   
+
+@app.route("/proxies/scrape", methods=["POST"])
+def scrape_proxies_route():
+    """Scrape proxies from sources."""
+    scrape_proxies()
+    return jsonify({"message": "Proxies scraped successfully!"}), 200
+
+@app.route("/proxies/load", methods=["POST"])
+def load_proxies_route():
+    """Load scraped proxies."""
+    global_scraped_proxies = load_proxies()
+    if not global_scraped_proxies:
+        return jsonify({"error": "No proxies found!"}), 400
+    return jsonify({"message": "Proxies loaded!", "count": len(global_scraped_proxies)}), 200
+
 @app.route("/proxies/test", methods=["POST"])
 def test_proxies_route():
-    test_proxies()
-    return jsonify({"message": "Proxy testing started!"})
+    """Test loaded proxies."""
+    global_scraped_proxies = load_proxies()
+    if not global_scraped_proxies:
+        return jsonify({"error": "No proxies loaded. Load proxies first!"}), 400
+    test_proxies(global_scraped_proxies)
+    return jsonify({"message": "Proxy testing started!"}), 200
+
+@app.route("/proxies/save", methods=["POST"])
+def save_proxies_route():
+    """Save valid proxies to file."""
+    save_working_proxies()
+    return jsonify({"message": "Valid proxies saved!"}), 200
+
+@app.route("/proxies/load-checked", methods=["POST"])
+def load_checked_proxies_route():
+    """Load previously tested proxies."""
+    global_checked_proxies = load_checked_proxies()
+    if not global_checked_proxies:
+        return jsonify({"error": "No previously checked proxies found!"}), 400
+    return jsonify({"message": "Checked proxies loaded!", "count": len(global_checked_proxies)}), 200
+
 
 @app.route("/hosts/scan", methods=["POST"])
 def scan_hosts_route():
