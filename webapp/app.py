@@ -13,6 +13,21 @@ import os
 import sqlite3
 from modules.host_handler import test_hosts, load_hosts
 from modules.bruteforce import bruteforce_ssh
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+import threading
+import bcrypt
+import os
+
+# Import script functions
+from modules.proxy_handler import load_proxies, scrape_proxies, test_proxies, load_checked_proxies, clear_proxies
+from modules.host_handler import load_hosts, load_ip_ranges, test_hosts
+from modules.scanner import scan_hosts
+from modules.bruteforce import bruteforce_ssh
+from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
+from modules.command_control import start_listener, stop_listeners, start_apache_server
+from modules.exploit import identify_vulnerable_hosts, exploit_vulnerable_hosts
+from globals import proxy_stats, host_stats, brute_stats
+from database import db  # Ensure database connection is used
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Change this!
