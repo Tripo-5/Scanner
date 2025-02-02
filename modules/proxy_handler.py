@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import socks
 import socket
 import os
@@ -8,7 +9,6 @@ import threading
 from tqdm import tqdm
 from collections import deque
 from globals import global_scraped_proxies, global_tested_proxies, pause_event, stop_event
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Ensure proxy directory exists
 proxy_lists_dir = "proxy_lists"
@@ -144,6 +144,10 @@ def test_single_proxy(proxy):
         return False
 
     try:
+        # Ensure proxy is in the format of IP:PORT before testing
+        if isinstance(proxy, list):
+            proxy = ":".join(proxy)  # Convert list [IP, PORT] to "IP:PORT"
+
         proxy_host, proxy_port = proxy.split(":")
         proxy_port = int(proxy_port)
 
