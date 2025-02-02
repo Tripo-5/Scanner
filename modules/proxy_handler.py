@@ -235,7 +235,6 @@ def test_single_proxy(proxy):
     except (socket.error, socks.ProxyError) as e:
         return False
 
-        
 def save_working_proxies():
     """Save the working proxies to the checked proxies file."""
     with open(checked_proxies_file, "w") as file:
