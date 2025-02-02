@@ -1,13 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Dashboard</title>
+    <meta charset="UTF-8">
+    <title>Scanner Dashboard</title>
 </head>
 <body>
-    <h2>Scanner Dashboard</h2>
-    <p><strong>Proxies:</strong> {{ proxy_stats['valid'] }} Valid | {{ proxy_stats['dead'] }} Dead | {{ proxy_stats['remaining'] }} Remaining</p>
-    <p><strong>Hosts:</strong> {{ host_stats['valid'] }} Live | {{ host_stats['dead'] }} Dead</p>
-    <p><strong>Brute-force:</strong> {{ brute_stats['running'] }} Running | {{ brute_stats['success'] }} Success</p>
-    <a href="{{ url_for('logout') }}">Logout</a>
+    <h2>Scanner Web Interface</h2>
+
+    <h3>Proxy Management</h3>
+    <form action="/load_proxies" method="post"><button type="submit">Load Proxies</button></form>
+    <form action="/scrape_proxies" method="post"><button type="submit">Scrape Proxies</button></form>
+    <form action="/test_proxies" method="post"><button type="submit">Test Proxies</button></form>
+    <form action="/clear_proxies" method="post"><button type="submit">Clear Proxies</button></form>
+
+    <h3>Host Scanning</h3>
+    <form action="/load_hosts" method="post"><button type="submit">Load Hosts</button></form>
+    <form action="/test_hosts" method="post"><button type="submit">Test Hosts</button></form>
+    <form action="/scan_hosts" method="post"><button type="submit">Scan Hosts</button></form>
+
+    <h3>Brute-force Attacks</h3>
+    <form action="/bruteforce_python" method="post"><button type="submit">Start Python Bruteforce</button></form>
+
+    <h3>Tor Proxy</h3>
+    <form action="/start_tor" method="post"><button type="submit">Start Tor</button></form>
+    <form action="/renew_tor" method="post"><button type="submit">Renew Tor IP</button></form>
+    <form action="/stop_tor" method="post"><button type="submit">Stop Tor</button></form>
+
+    <h3>Command & Control</h3>
+    <form action="/start_apache" method="post"><button type="submit">Start Apache</button></form>
+    <form action="/start_listener" method="post"><button type="submit">Start Listener</button></form>
+    <form action="/stop_listeners" method="post"><button type="submit">Stop Listeners</button></form>
+
+    <h3>User</h3>
+    <form action="/logout"><button type="submit">Logout</button></form>
 </body>
 </html>
