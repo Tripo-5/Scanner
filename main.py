@@ -39,6 +39,9 @@ from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
 import os
 import keyboard
 from modules.go_bruteforce import run_golang_bruteforce
+import threading
+from termcolor import colored
+import time
 
 # Dictionary to track active background tasks
 active_tasks = {}
