@@ -6,8 +6,7 @@ import flask
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import db
-
+from webapp.database import db
 from globals import global_scraped_proxies, global_tested_proxies, global_hosts, active_tasks, proxy_stats, host_stats, brute_stats, web_config
 from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies, add_proxy_sources, load_checked_proxies, clear_proxies
 from modules.host_handler import load_hosts, load_ip_ranges, test_hosts, load_previous_hosts
