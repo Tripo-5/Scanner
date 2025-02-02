@@ -96,14 +96,33 @@ def status_text(task_name):
     return ""
 
 
+from termcolor import colored
+import os
+
 def display_statistics():
-    """Show system stats dynamically"""
+    """Show system stats dynamically with color enhancements"""
     os.system("clear")  # Clear screen
-    print("\n[ SYSTEM STATISTICS ]")
-    print(f"Active Background Tasks: {len(active_tasks)}")
-    print(f"📡 Proxies: {proxy_stats['total']} Total | {proxy_stats['valid']} Valid | {proxy_stats['dead']} Dead | {proxy_stats['remaining']} Remaining")
-    print(f"🌐 Hosts: {host_stats['total']} Total | {host_stats['valid']} Live | {host_stats['dead']} Dead | {host_stats['remaining']} Remaining")
-    print(f"🔑 Brute-force: {brute_stats['running']} Running | {brute_stats['success']} Success | {brute_stats['failed']} Failed\n")
+    print("\n" + colored("[ SYSTEM STATISTICS ]", "cyan", attrs=["bold"]))
+
+    print(f"🟢 Active Background Tasks: {colored(len(active_tasks), 'green')}\n")
+
+    print(f"📡 {colored('Proxies:', 'blue', attrs=['bold'])} "
+          f"{colored(proxy_stats['total'], 'white')} Total | "
+          f"{colored(proxy_stats['valid'], 'green')} Valid | "
+          f"{colored(proxy_stats['dead'], 'red')} Dead | "
+          f"{colored(proxy_stats['remaining'], 'yellow')} Remaining")
+
+    print(f"🌐 {colored('Hosts:', 'magenta', attrs=['bold'])} "
+          f"{colored(host_stats['total'], 'white')} Total | "
+          f"{colored(host_stats['valid'], 'green')} Live | "
+          f"{colored(host_stats['dead'], 'red')} Dead | "
+          f"{colored(host_stats['remaining'], 'yellow')} Remaining")
+
+    print(f"🔑 {colored('Brute-force:', 'cyan', attrs=['bold'])} "
+          f"{colored(brute_stats['running'], 'white')} Running | "
+          f"{colored(brute_stats['success'], 'green')} Success | "
+          f"{colored(brute_stats['failed'], 'red')} Failed\n")
+
 
 def main_menu():
     while True:
