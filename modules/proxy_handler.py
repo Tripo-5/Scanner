@@ -122,10 +122,13 @@ def test_proxies(proxies):
 
 def print_status():
     """Update the terminal display dynamically with counters."""
-    print(f"\r{colored(f'Valid Proxies: {proxy_stats['valid']}', 'green')} | "
-          f"{colored(f'Invalid Proxies: {proxy_stats['dead']}', 'red')} | "
-          f"{colored(f'Remaining: {proxy_stats['remaining']}', 'yellow')} | "
-          f"{colored(f'Total: {proxy_stats['total']}', 'white')}", end="")
+    print("\r{} | {} | {} | {}".format(
+        colored(f"Valid Proxies: {proxy_stats['valid']}", "green"),
+        colored(f"Invalid Proxies: {proxy_stats['dead']}", "red"),
+        colored(f"Remaining: {proxy_stats['remaining']}", "yellow"),
+        colored(f"Total: {proxy_stats['total']}", "white")
+    ), end="")
+
 
     print("\nMost recent proxies tested:")
     for proxy_info in reversed(recent_proxies):
