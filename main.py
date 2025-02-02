@@ -40,8 +40,24 @@ import os
 import keyboard
 from modules.go_bruteforce import run_golang_bruteforce
 
+# Dictionary to track active background tasks
+active_tasks = {}
+
+# Proxy & Host scanning counters
+proxy_stats = {"total": 0, "testing": 0, "valid": 0, "dead": 0, "remaining": 0}
+host_stats = {"total": 0, "scanning": 0, "valid": 0, "dead": 0, "remaining": 0}
+brute_stats = {"running": 0, "success": 0, "failed": 0}
+
+
 def main_menu():
     while True:
+        # Clear screen
+        print("\033[H\033[J", end="")
+
+        # ** Display Current Statistics ** #
+        display_statistics()
+
+        # ** Main Menu ** #
         print(r"#################################################")
         print(r" _____  ______   _____  ______   _____   _____   ")
         print(r"|_   _| | ___ \ |_   _| | ___ \ |  _  | |  ___|  ")
@@ -61,31 +77,31 @@ def main_menu():
         print(r"#################################################")                                          
         print(r"#################################################")
         print("\n[ Main Menu ]")
-        print("1.) Add Proxy Sources")
-        print("2.) Scrape Proxies")
-        print("3.) Load Proxies")
-        print("4.) Test Proxies")
-        print("5.) Load Checked Proxies")
-        print("6.) Clear Proxies")
-        print("7.) Load Hosts")
-        print("8.) Load IP Ranges")
-        print("9.) Load Previously Tested Hosts")
-        print("10.) Test Hosts")
-        print("11.) Scan Hosts")
-        print("12.) Show Results")
-        print("13.) Clear Results")
-        print("14.) Identify Vulnerabilities")
-        print("15.) Exploit Vulnerable Hosts")
-        print("16.) Clear All Chunks")
-        print("17.) Split Large CSVs")
-        print("18.) Python SSH Bruteforce")
-        print("19.) Golang SSH Bruteforce (w/ SOCKS5)")
-        print("20.) Configuration Settings")
-        print("21.) Generate Reverse Shell")
-        print("22.) Manage Cryptominers")
-        print("23.) Command and Control Center")
-        print("24.) Start/Stop Tor Proxy")
-        print("25.) Exit")
+        print(f"1.) Add Proxy Sources")
+        print(f"2.) Scrape Proxies")
+        print(f"3.) Load Proxies")
+        print(f"4.) Test Proxies {status_text('proxy_test')}")
+        print(f"5.) Load Checked Proxies")
+        print(f"6.) Clear Proxies")
+        print(f"7.) Load Hosts")
+        print(f"8.) Load IP Ranges")
+        print(f"9.) Load Previously Tested Hosts")
+        print(f"10.) Test Hosts {status_text('host_test')}")
+        print(f"11.) Scan Hosts {status_text('host_scan')}")
+        print(f"12.) Show Results")
+        print(f"13.) Clear Results")
+        print(f"14.) Identify Vulnerabilities")
+        print(f"15.) Exploit Vulnerable Hosts")
+        print(f"16.) Clear All Chunks")
+        print(f"17.) Split Large CSVs")
+        print(f"18.) Python SSH Bruteforce {status_text('python_brute')}")
+        print(f"19.) Golang SSH Bruteforce (w/ SOCKS5) {status_text('go_brute')}")
+        print(f"20.) Configuration Settings")
+        print(f"21.) Generate Reverse Shell")
+        print(f"22.) Manage Cryptominers")
+        print(f"23.) Command and Control Center")
+        print(f"24.) Start/Stop Tor Proxy")
+        print(f"25.) Exit")
         print(r"#################################################")      
 
         choice = input("Enter your choice: ")
@@ -95,8 +111,8 @@ def main_menu():
             scrape_proxies()
         elif choice == "3":
             global_scraped_proxies[:] = load_proxies()
-        elif choice == "4":
-            global_tested_proxies[:] = test_proxies(global_scraped_proxies)
+          if choice == "4":
+            toggle_background_task("proxy_test", test_proxies, global_scraped_proxies)
         elif choice == "5":
             global_tested_proxies[:] = load_checked_proxies()
         elif choice == "6":
@@ -108,9 +124,9 @@ def main_menu():
         elif choice == "9":
             global_hosts[:] = load_previous_hosts()
         elif choice == "10":
-            global_live_hosts[:] = test_hosts(global_hosts, global_tested_proxies)
+            toggle_background_task("host_test", test_hosts, global_hosts, global_tested_proxies)
         elif choice == "11":
-            scan_hosts()
+            toggle_background_task("host_scan", scan_hosts)
         elif choice == "12":
             show_results()
         elif choice == "13":
@@ -130,15 +146,10 @@ def main_menu():
                 max_lines = 200
             split_large_csvs(base_dir, max_lines)
         elif choice == "18":
-            if not global_live_hosts:
-                print("[ERROR] No valid live hosts found.")
-                continue
-
-            targets = global_live_hosts
-            usernames, passwords = load_wordlists()
-            if not usernames or not passwords:
-                print("[ERROR] Missing or empty wordlists.")
-                continue
+            toggle_background_task("python_brute", bruteforce_ssh, global_live_hosts)
+             if not usernames or not passwords:
+                 print("[ERROR] Missing or empty wordlists.")
+                 continue
 
             print("\n[ SSH Bruteforce Options ]")
             print("1.) Python-Based Brute Force (Hydra/Paramiko)")
@@ -156,29 +167,7 @@ def main_menu():
             else:
                 print("[ERROR] Invalid choice. Please enter 1, 2, or 3.")
         elif choice == "19":
-            # Run Golang SSH Bruteforce with SOCKS5 proxies
-            if not global_live_hosts:
-                print("[ERROR] No valid live hosts found.")
-                continue
-
-            if not global_tested_proxies:
-                print("[WARNING] No proxies available. Running without proxy.")
-
-            username_file = "wordlists/ssh_usernames.txt"
-            password_file = "wordlists/ssh_passwords.txt"
-
-            if not os.path.exists(username_file) or not os.path.exists(password_file):
-                print("[ERROR] Wordlists not found! Make sure they exist in the wordlists/ directory.")
-                continue
-
-            threads = input("Enter the number of threads (default 5): ")
-            try:
-                threads = int(threads) if threads else 5
-            except ValueError:
-                print("[ERROR] Invalid input. Using default (5).")
-                threads = 5
-
-            run_golang_bruteforce(global_live_hosts, username_file, password_file, threads)
+            toggle_background_task("go_brute", run_golang_bruteforce, global_live_hosts)
         elif choice == "20":
             configure_settings()
         elif choice == "21":
@@ -216,9 +205,7 @@ def main_menu():
             elif tor_action == "3":
                 renew_tor_ip()
         elif choice == "25":
-            print("[INFO] Exiting. Stopping all listeners and background tasks.")
-            stop_listeners()
-            stop_tor()
+            stop_all_background_tasks()
             break
 
 def setup_keyboard_controls():
