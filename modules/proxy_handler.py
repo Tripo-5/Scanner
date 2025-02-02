@@ -125,7 +125,6 @@ def test_proxies(proxies):
 
     return valid_proxies, invalid_proxies
 
-
 def test_single_proxy(proxy):
     """
     Test a single proxy by attempting to connect to a test server.
@@ -142,6 +141,7 @@ def test_single_proxy(proxy):
         return False
 
     try:
+        # Split the string 'IP:Port' format into host and port
         proxy_host, proxy_port = proxy.split(":")
         proxy_port = int(proxy_port)
 
@@ -155,7 +155,7 @@ def test_single_proxy(proxy):
         return True
     except (socket.error, socks.ProxyError) as e:
         return False
-
+        
 def save_working_proxies():
     """
     Save the working proxies to the checked proxies file.
