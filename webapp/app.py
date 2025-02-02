@@ -8,7 +8,10 @@ from modules.host_handler import test_hosts, load_hosts
 from modules.bruteforce import bruteforce_ssh
 import sys
 import os
-sys.path.append(os.path.abspath(".."))  # Add parent directory to path
+
+# Ensure the script can find `globals.py`
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(BASE_DIR)
 
 from globals import web_config, active_tasks, proxy_stats, host_stats, brute_stats
 
