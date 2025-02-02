@@ -205,10 +205,10 @@ def test_single_proxy(proxy):
         time.sleep(0.5)
 
     if stop_event.is_set():
-        return False  # Stop testing
+        return False
 
     try:
-        # Ensure correct proxy format
+        # Ensure proxy is in the correct format (IP:PORT)
         if isinstance(proxy, list):
             proxy = ":".join(proxy)
 
@@ -216,18 +216,25 @@ def test_single_proxy(proxy):
         proxy_port = int(proxy_port)
 
         if not (0 <= proxy_port <= 65535):
-            return False  # Invalid proxy
+            print(colored(f"[ERROR] Invalid proxy port: {proxy_port}", "red"))
+            return False
 
         # Set up SOCKS5 proxy using the provided proxy
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
-        sock.settimeout(5)
-        sock.connect(("httpbin.org", 80))
-        sock.close()
-        return True  # Proxy is valid
+        sock.settimeout(5)  # Ensure timeout to prevent freezing
 
-    except (socket.error, socks.ProxyError):
-        return False  # Proxy is dead
+        try:
+            sock.connect(("httpbin.org", 80))  # Test connection
+        except socket.timeout:
+            return False  # Skip if timeout occurs
+
+        sock.close()
+        return True
+
+    except (socket.error, socks.ProxyError) as e:
+        return False
+
         
 def save_working_proxies():
     """Save the working proxies to the checked proxies file."""
