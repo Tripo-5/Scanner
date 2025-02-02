@@ -197,7 +197,15 @@ def main_menu():
             configure_settings()
         elif choice == "25":
             stop_all_background_tasks()
+        elif choice == "26":  # New Option to Enable Web Server
+            if not web_config["enabled"]:
+                web_config["enabled"] = True
+                print("[INFO] Starting Web Interface...")
+                os.system("python3 webapp/app.py &")  # Run Flask in background
+            else:
+                print("[INFO] Web Interface already running.")    
             break
+
 
 
 def setup_keyboard_controls():
