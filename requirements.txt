@@ -7,3 +7,5 @@ termcolor
 mysql-connector
 pycryptodome
 keyboard
+Flask
+sqlite3
