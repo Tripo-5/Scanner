@@ -2,7 +2,7 @@ import pymysql
 from pymysql.err import OperationalError
 
 DB_NAME = "scanner_db"
-DB_USER = "scanner_user"
+DB_USER = "root"
 DB_PASSWORD = "password"
 DB_HOST = "localhost"
 
