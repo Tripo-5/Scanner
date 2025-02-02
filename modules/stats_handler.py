@@ -1,7 +1,7 @@
 import os
 from termcolor import colored
 import platform
-
+from globals import active_tasks, proxy_stats, host_stats, brute_stats
 # Global Stats Dictionary
 proxy_stats = {"total": 0, "valid": 0, "dead": 0, "remaining": 0}
 host_stats = {"total": 0, "valid": 0, "dead": 0, "remaining": 0}
