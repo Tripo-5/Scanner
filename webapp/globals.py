@@ -48,3 +48,9 @@ brute_stats = {
     "success": 0,
     "failed": 0,
 }
+
+web_config = {
+    "enabled": False,
+    "host": "0.0.0.0",
+    "port": 5000
+}
