@@ -9,6 +9,7 @@ import threading
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from termcolor import colored
+from collections import deque
 
 # Ensure proxy directory exists
 proxy_lists_dir = "proxy_lists"
@@ -78,59 +79,84 @@ def scrape_proxies():
 def test_proxies(proxies):
     """
     Test a list of proxies using multithreading.
-    
-    :param proxies: List of proxies in IP:Port format
+
+    :param proxies: List of proxies to test (IP:Port format)
     """
     print("[INFO] Starting proxy testing...")
-    results = []
 
-    # Ensure that the threads pause when Tor is being renewed
-    with ThreadPoolExecutor(max_workers=20) as executor:
+    # Counters for valid and invalid proxies
+    valid_proxies = 0
+    invalid_proxies = 0
+
+    # Use ThreadPoolExecutor for concurrent proxy testing
+    with ThreadPoolExecutor(max_workers=50) as executor:
         futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
 
+        # Use tqdm to show progress bar and update counters dynamically
         for future in tqdm(futures, desc="Testing Proxies", total=len(futures)):
-            # Handle pause during Tor renewal
-            while pause_event.is_set():
-                time.sleep(0.5)
-            # Check for stop event to gracefully terminate
-            if stop_event.is_set():
-                print("[INFO] Stopping proxy tests.")
-                break
-            future.result()  # Ensure any exceptions are raised and handled
-    print("[INFO] Proxy testing complete.")
+            result = future.result()
 
-def test_single_proxy(proxy, test_url="http://example.com"):
+            if result:
+                valid_proxies += 1
+                print(colored(f"[VALID] Proxy {futures[future]} works!", "green"))
+            else:
+                invalid_proxies += 1
+                print(colored(f"[ERROR] Proxy {futures[future]} failed!", "red"))
+
+            # Add the current proxy to the deque
+            recent_proxies.append(futures[future])
+
+            # Update the output with colored statistics and limited proxies
+            print(f"\r{colored(f'Valid Proxies: {valid_proxies}', 'green')} | "
+                  f"{colored(f'Invalid Proxies: {invalid_proxies}', 'red')}   "
+                  f"{colored(f'Total: {valid_proxies + invalid_proxies}', 'white')}", end="")
+
+            # Print the most recent proxies (up to the PRINT_LIMIT)
+            print("\nMost recent proxies tested:")
+            for proxy in reversed(recent_proxies):
+                print(colored(f"{proxy}", "yellow"))
+
+    print(f"\n[INFO] Proxy testing complete.")
+    print(f"[INFO] Valid proxies: {valid_proxies}")
+    print(f"[INFO] Invalid proxies: {invalid_proxies}")
+
+    return valid_proxies, invalid_proxies
+
+
+# Limit for the number of proxies printed in terminal
+PRINT_LIMIT = 10
+
+# Deque to store the most recent proxies tested
+recent_proxies = deque(maxlen=PRINT_LIMIT)
+
+def test_single_proxy(proxy):
     """
-    Test a single proxy by attempting to access a URL.
-    
+    Test a single proxy by attempting to connect to a test server.
+
     :param proxy: Proxy in IP:Port format
-    :param test_url: URL to test the proxy with
+    :return: Boolean (True if successful, False if failed)
     """
-    # Ensure proxy is in the correct format (string)
-    if isinstance(proxy, list):
-        proxy = ":".join(proxy)  # Convert list to string "IP:Port"
-
-    proxy_host, proxy_port = proxy.split(":")
-    proxy_port = int(proxy_port)
-
-    # Check if the scanning is paused or stopped
+    # Check if scan is paused or stopped
     while pause_event.is_set():
         time.sleep(0.5)
 
     if stop_event.is_set():
-        print("[INFO] Stopping proxy testing.")
-        return
+        print("[INFO] Stopping proxy tests.")
+        return False
 
     try:
+        proxy_host, proxy_port = proxy.split(":")
+        proxy_port = int(proxy_port)
+
+        # Set up SOCKS5 proxy using the provided proxy
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
         sock.settimeout(5)  # 5-second timeout for proxy connection
-        sock.connect((test_url, 80))  # Connecting to the test URL
+        sock.connect(("httpbin.org", 80))  # Test connection with a simple HTTP request
         sock.close()
-        print(colored(f"[VALID] Proxy {proxy} works!", "green"))
+
         return True
     except (socket.error, socks.ProxyError) as e:
-        print(colored(f"[ERROR] Proxy {proxy} failed: {e}", "red"))
         return False
 
 def save_working_proxies():
