@@ -10,13 +10,13 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from termcolor import colored
 from itertools import cycle
-
-# Global lock for thread-safe operations
 from threading import Lock
-lock = Lock()
 
 # Ensure results directory exists
 os.makedirs("results", exist_ok=True)
+
+# Global lock for thread-safe operations
+lock = Lock()
 
 # Counters for tracking progress
 counter_valid = 0
