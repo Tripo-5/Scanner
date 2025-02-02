@@ -3,6 +3,7 @@ import os
 import time
 import threading
 from globals import global_config, stop_event, pause_event  # Fixed missing imports
+import subprocess
 
 CONFIG_FILE = "config.json"
 
