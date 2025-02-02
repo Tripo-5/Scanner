@@ -47,16 +47,17 @@ import time
 # Dictionary to track active background tasks
 active_tasks = {}
 
-# Proxy & Host scanning counters
+# Proxy, Host, and Bruteforce statistics
 proxy_stats = {"total": 0, "testing": 0, "valid": 0, "dead": 0, "remaining": 0}
 host_stats = {"total": 0, "scanning": 0, "valid": 0, "dead": 0, "remaining": 0}
 brute_stats = {"running": 0, "success": 0, "failed": 0}
 
+# Flag to return to menu from any scan
+return_to_menu = threading.Event()
+
 
 def stop_all_background_tasks():
-    """
-    Gracefully stop all running background tasks.
-    """
+    """Gracefully stop all running background tasks."""
     print("[INFO] Stopping all background tasks...")
     stop_event.set()
     for task_name, thread in active_tasks.items():
@@ -66,59 +67,54 @@ def stop_all_background_tasks():
 
 
 def toggle_background_task(task_name, function, *args):
-    """
-    Manage background tasks:
+    """Manage background tasks:
     - Start new task if not running
+    - Allow user to return to menu while scan continues
     - Resume existing task if already running
-    - Stop task if user requests
-
-    :param task_name: Unique name for the background task
-    :param function: Function to execute
-    :param args: Arguments to pass to the function
     """
     if task_name in active_tasks and active_tasks[task_name].is_alive():
         print(f"[INFO] Resuming {task_name}...")
         active_tasks[task_name].join()
     else:
         print(f"[INFO] Starting {task_name} in background...")
+        return_to_menu.clear()  # Reset return-to-menu flag
         thread = threading.Thread(target=function, args=args, daemon=True)
         active_tasks[task_name] = thread
         thread.start()
 
 
+def return_to_main():
+    """Allows the user to return to the main menu while a scan is running."""
+    print("[INFO] Returning to the main menu. Scanning will continue in the background.")
+    return_to_menu.set()
+
+
 def status_text(task_name):
-    """
-    Display 'CURRENTLY RUNNING' status in green for active tasks.
-    """
+    """Display 'CURRENTLY RUNNING' status in green for active tasks."""
     if task_name in active_tasks and active_tasks[task_name].is_alive():
         return colored("[CURRENTLY RUNNING]", "green")
     return ""
 
 
 def display_statistics():
-    """
-    Display real-time statistics of proxy and host scanning.
-    """
+    """Display real-time statistics of proxy and host scanning."""
     active_task_count = sum(1 for task in active_tasks.values() if task.is_alive())
 
     print("\n\033[1;34m[ SYSTEM STATISTICS ]\033[0m")
     print(f"Active Background Tasks: {colored(active_task_count, 'yellow')}")
 
-    # ** Proxy Stats **
     print(f"📡 Proxies: {colored(proxy_stats['total'], 'cyan')} Total | "
           f"{colored(proxy_stats['testing'], 'blue')} Testing | "
           f"{colored(proxy_stats['valid'], 'green')} Valid | "
           f"{colored(proxy_stats['dead'], 'red')} Dead | "
           f"{colored(proxy_stats['remaining'], 'yellow')} Remaining")
 
-    # ** Host Scanning Stats **
     print(f"🌐 Hosts: {colored(host_stats['total'], 'cyan')} Total | "
           f"{colored(host_stats['scanning'], 'blue')} Scanning | "
           f"{colored(host_stats['valid'], 'green')} Live | "
           f"{colored(host_stats['dead'], 'red')} Dead | "
           f"{colored(host_stats['remaining'], 'yellow')} Remaining")
 
-    # ** Brute-force Stats **
     print(f"🔑 Brute-force: {colored(brute_stats['running'], 'blue')} Running | "
           f"{colored(brute_stats['success'], 'green')} Success | "
           f"{colored(brute_stats['failed'], 'red')} Failed")
@@ -126,13 +122,9 @@ def display_statistics():
 
 def main_menu():
     while True:
-        # Clear screen
-        print("\033[H\033[J", end="")
-
-        # Display statistics
+        print("\033[H\033[J", end="")  # Clear screen
         display_statistics()
 
-        # ** Main Menu **
         print("\n[ Main Menu ]")
         print(f"1.) Add Proxy Sources")
         print(f"2.) Scrape Proxies")
@@ -161,6 +153,7 @@ def main_menu():
         print(f"25.) Exit")
 
         choice = input("Enter your choice: ")
+
         if choice == "1":
             add_proxy_sources()
         elif choice == "2":
@@ -173,14 +166,34 @@ def main_menu():
             global_tested_proxies[:] = load_checked_proxies()
         elif choice == "6":
             clear_proxies()
+        elif choice == "7":
+            global_hosts[:] = load_hosts()
+        elif choice == "8":
+            global_hosts[:] = load_ip_ranges()
+        elif choice == "9":
+            global_hosts[:] = load_previous_hosts()
         elif choice == "10":
             toggle_background_task("host_test", test_hosts, global_hosts, global_tested_proxies)
         elif choice == "11":
             toggle_background_task("host_scan", scan_hosts)
+        elif choice == "12":
+            show_results()
+        elif choice == "13":
+            clear_results()
+        elif choice == "14":
+            global_vulnerable_hosts[:] = identify_vulnerable_hosts(global_live_hosts)
+        elif choice == "15":
+            exploit_vulnerable_hosts(global_vulnerable_hosts)
+        elif choice == "16":
+            clear_all_chunks()
+        elif choice == "17":
+            split_large_csvs("ip_ranges", 200)
         elif choice == "18":
             toggle_background_task("python_brute", bruteforce_ssh, global_live_hosts)
         elif choice == "19":
             toggle_background_task("go_brute", run_golang_bruteforce, global_live_hosts)
+        elif choice == "20":
+            configure_settings()
         elif choice == "25":
             stop_all_background_tasks()
             break
@@ -189,7 +202,8 @@ def main_menu():
 def setup_keyboard_controls():
     keyboard.add_hotkey("F5", lambda: pause_event.set() if not pause_event.is_set() else pause_event.clear())
     keyboard.add_hotkey("F6", lambda: stop_event.set())
-    print("[INFO] Press F5 to pause/resume and F6 to stop scanning.")
+    keyboard.add_hotkey("F7", return_to_main)
+    print("[INFO] Press F5 to pause/resume, F6 to stop scanning, and F7 to return to menu.")
 
 
 setup_keyboard_controls()
