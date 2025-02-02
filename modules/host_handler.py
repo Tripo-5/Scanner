@@ -28,6 +28,96 @@ PRINT_LIMIT = 20
 # Store the most recent hosts tested
 recent_hosts = deque(maxlen=PRINT_LIMIT)
 
+def load_ip_ranges():
+    """
+    Load IP ranges from CSV files within the ip_ranges directory.
+    Convert ranges into individual IPs and save them for processing.
+    """
+    global global_hosts
+    base_dir = "ip_ranges"
+
+    if not os.path.exists(base_dir):
+        print(f"[ERROR] Base directory {base_dir} does not exist.")
+        return []
+
+    countries = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+    if not countries:
+        print(f"[INFO] No country directories found in {base_dir}.")
+        return []
+
+    print("[INFO] Available countries:")
+    for i, country in enumerate(countries, start=1):
+        print(f"{i}. {country}")
+
+    try:
+        country_choice = int(input("Select a country by number: ")) - 1
+        if country_choice < 0 or country_choice >= len(countries):
+            print("[ERROR] Invalid selection.")
+            return []
+    except ValueError:
+        print("[ERROR] Invalid input. Please enter a number.")
+        return []
+
+    selected_country = countries[country_choice]
+    country_dir = os.path.join(base_dir, selected_country)
+
+    csv_files = [f for f in os.listdir(country_dir) if f.endswith(".csv")]
+    if not csv_files:
+        print(f"[INFO] No CSV files found in {country_dir}.")
+        return []
+
+    print(f"[INFO] Available IP range files in {selected_country}:")
+    for i, csv_file in enumerate(csv_files, start=1):
+        print(f"{i}. {csv_file}")
+
+    try:
+        file_choice = int(input("Select a file by number: ")) - 1
+        if file_choice < 0 or file_choice >= len(csv_files):
+            print("[ERROR] Invalid selection.")
+            return []
+    except ValueError:
+        print("[ERROR] Invalid input. Please enter a number.")
+        return []
+
+    selected_file = csv_files[file_choice]
+    file_path = os.path.join(country_dir, selected_file)
+
+    ip_addresses_dir = os.path.join(country_dir, "ip_addresses")
+    os.makedirs(ip_addresses_dir, exist_ok=True)
+
+    output_file = os.path.join(ip_addresses_dir, f"{selected_country}_IPV4List.txt")
+
+    all_ips = []
+    with open(file_path, "r") as file:
+        reader = csv.reader(file)
+        for line in reader:
+            if len(line) != 2:
+                continue
+            try:
+                start_ip = ipaddress.IPv4Address(line[0].strip())
+                end_ip = ipaddress.IPv4Address(line[1].strip())
+
+                if start_ip > end_ip:
+                    continue
+
+                current_ip = start_ip
+                while current_ip <= end_ip:
+                    all_ips.append(str(current_ip))
+                    current_ip += 1
+
+            except ValueError:
+                continue
+
+    random.shuffle(all_ips)
+    global_hosts = all_ips
+
+    with open(output_file, "w") as output:
+        for ip in global_hosts:
+            output.write(ip + "\n")
+
+    print(f"[INFO] Loaded {len(global_hosts)} IPs from {file_path} and saved to {output_file}.")
+    return global_hosts
+
 
 def load_hosts():
     """Load hosts from a file into the global_hosts list."""
