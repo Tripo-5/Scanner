@@ -100,18 +100,15 @@ def test_proxies(proxies):
         for future in tqdm(futures, desc="Testing Proxies", total=len(futures)):
             result = future.result()
 
-            # Update counters and display status
             if result:
                 valid_proxies += 1
-                status = 'Valid'
                 print(colored(f"[VALID] Proxy {futures[future]} works!", "green"))
             else:
                 invalid_proxies += 1
-                status = 'Dead'
                 print(colored(f"[ERROR] Proxy {futures[future]} failed!", "red"))
 
             # Add the current proxy to the deque for recent proxy display
-            recent_proxies.append(f"{futures[future]} - {status}")
+            recent_proxies.append(futures[future])
 
             # Update the output with colored statistics and limited proxies
             print(f"\r{colored(f'Valid Proxies: {valid_proxies}', 'green')} | "
@@ -122,12 +119,7 @@ def test_proxies(proxies):
             # Print the most recent proxies (up to the PRINT_LIMIT)
             print("\nMost recent proxies tested:")
             for proxy in reversed(recent_proxies):
-                # Display each proxy with status (valid or dead) in color
-                ip, port, status = proxy.split(" - ")
-                if status == "Valid":
-                    print(colored(f"{ip}:{port} - {status}", "green"))
-                else:
-                    print(colored(f"{ip}:{port} - {status}", "red"))
+                print(colored(f"{proxy}", "yellow"))
 
     print(f"\n[INFO] Proxy testing complete.")
     print(f"[INFO] Valid proxies: {valid_proxies}")
