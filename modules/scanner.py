@@ -1,5 +1,4 @@
 from globals import global_live_hosts, global_tested_proxies, pause_event, stop_event
-from itertools import cycle
 import socks
 import socket
 import os
@@ -8,66 +7,51 @@ import threading
 from tqdm import tqdm
 from termcolor import colored
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-# Global lock for thread-safe operations
-lock = threading.Lock()
+from itertools import cycle
+from collections import deque
 
 # Ensure the results directory exists
 os.makedirs("results", exist_ok=True)
 
-# Counters for progress tracking
-counter_scanned = 0
-counter_failed = 0
-counter_total = 0
-counter_remaining = 0
+# Global lock for thread-safe operations
+lock = threading.Lock()
 
-# Function to update the counters display
-def display_counters():
-    print("\033[H\033[J", end="")  # Clear terminal screen
-    print(f"[STATS] "
-          f"{colored(f'Scanned: {counter_scanned}', 'green')} | "
-          f"{colored(f'Failed: {counter_failed}', 'red')} | "
-          f"{colored(f'Remaining: {counter_remaining}', 'yellow')} | "
-          f"{colored(f'Total: {counter_total}', 'white')}")
+# Scanning statistics
+scan_stats = {"total": 0, "scanning": 0, "scanned": 0, "failed": 0, "remaining": 0}
+
+# Limit for displaying recently scanned hosts
+PRINT_LIMIT = 20
+
+# Store the most recent scanned hosts
+recent_scans = deque(maxlen=PRINT_LIMIT)
+
 
 def send_tcp_probe(ip, proxy, port=22):
-    """
-    Perform a banner grab on the given IP and port using a SOCKS5 proxy.
-
-    :param ip: Target IP address
-    :param proxy: Proxy details (host and port)
-    :param port: Target port (default: 22)
-    :return: Banner string if successful, None otherwise
-    """
+    """Perform a banner grab on the given IP using a SOCKS5 proxy."""
     proxy_host, proxy_port = proxy
     try:
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port))
-        sock.settimeout(5)  # Set a 5-second timeout
+        sock.settimeout(5)
         sock.connect((ip, port))
-        sock.sendall(b"\n")  # Send a newline to initiate the banner response
+        sock.sendall(b"\n")
         banner = sock.recv(1024).decode("utf-8", errors="ignore")
         sock.close()
         return banner.strip()
     except (socket.error, socks.ProxyError, socks.GeneralProxyError):
         return None
 
-def scan_single_host(host, proxy):
-    """
-    Scan a single host using a SOCKS5 proxy.
-    
-    :param host: The target host.
-    :param proxy: The proxy being used for the scan.
-    """
-    global counter_scanned, counter_failed, counter_remaining
 
-    # Check for pause or stop
+def scan_single_host(host, proxy):
+    """Scan a single host using a SOCKS5 proxy."""
+    global scan_stats
+
     while pause_event.is_set():
         time.sleep(0.5)
 
     if stop_event.is_set():
         print("[INFO] Scanning stopped.")
-        return
+        return False
 
     try:
         banner = send_tcp_probe(host, proxy)
@@ -76,28 +60,28 @@ def scan_single_host(host, proxy):
                 with open("results/scanned_hosts.txt", "a") as file:
                     file.write(f"{host}: {banner}\n")
 
-                counter_scanned += 1
-                counter_remaining -= 1
+                scan_stats["scanned"] += 1
+                scan_stats["remaining"] -= 1
+                recent_scans.append([host, "Success"])
 
-                display_counters()
+                print_status()
                 print(colored(f"[INFO] {host}: {banner}", "green"))
+            return True
         else:
             raise ValueError("No banner received")
 
     except Exception as e:
         with lock:
-            counter_failed += 1
-            counter_remaining -= 1
-            display_counters()
+            scan_stats["failed"] += 1
+            scan_stats["remaining"] -= 1
+            recent_scans.append([host, "Failed"])
+            print_status()
         print(colored(f"[ERROR] Error scanning host {host}: {e}", "red"))
+        return False
+
 
 def scan_hosts():
-    """
-    Scan hosts in global_live_hosts using proxies from global_tested_proxies.
-    Perform a banner check on port 22.
-    """
-    global counter_scanned, counter_failed, counter_total, counter_remaining
-
+    """Scan hosts in global_live_hosts using proxies from global_tested_proxies."""
     if not global_live_hosts:
         print("[ERROR] No live hosts available for scanning.")
         return
@@ -106,49 +90,45 @@ def scan_hosts():
         print("[ERROR] No tested proxies available for scanning.")
         return
 
-    proxy_cycle = cycle(global_tested_proxies)  # Cycle through proxies
+    global scan_stats
+    scan_stats.update({"total": len(global_live_hosts), "scanning": len(global_live_hosts), "scanned": 0, "failed": 0, "remaining": len(global_live_hosts)})
 
-    # Initialize counters
-    counter_scanned = 0
-    counter_failed = 0
-    counter_total = len(global_live_hosts)
-    counter_remaining = len(global_live_hosts)
+    print("[INFO] Host scanning started...")
 
-    # Clear previous scan results
-    with open("results/scanned_hosts.txt", "w") as file:
-        pass
+    def background_scanning():
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            proxy_cycle = cycle(global_tested_proxies)
+            futures = {executor.submit(scan_single_host, host, next(proxy_cycle)): host for host in global_live_hosts}
 
-    display_counters()
-
-    print("[INFO] Starting host scan...")
-
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(scan_single_host, host, next(proxy_cycle)): host for host in global_live_hosts}
-
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Scanning Hosts"):
-            # Check for stop event
-            if stop_event.is_set():
-                print("[INFO] Stopping scanning...")
-                break
-
-            # Wait if paused
-            while pause_event.is_set():
-                time.sleep(0.5)
-
-            try:
-                future.result()  # Ensure exceptions are raised
-            except Exception as e:
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Scanning Hosts"):
                 host = futures[future]
-                print(colored(f"[ERROR] Error scanning host {host}: {e}", "red"))
+                try:
+                    future.result()
+                except Exception as e:
+                    print(colored(f"[ERROR] Error scanning host {host}: {e}", "red"))
+                print_status()
 
-            display_counters()
+    # Start scanning in the background
+    scanning_thread = threading.Thread(target=background_scanning, daemon=True)
+    scanning_thread.start()
 
-    print(f"[INFO] Scan complete. Results saved to results/scanned_hosts.txt.")
+
+def print_status():
+    """Update the terminal display dynamically with counters."""
+    print(f"\r{colored(f'Successful Scans: {scan_stats['scanned']}', 'green')} | "
+          f"{colored(f'Failed: {scan_stats['failed']}', 'red')} | "
+          f"{colored(f'Remaining: {scan_stats['remaining']}', 'yellow')} | "
+          f"{colored(f'Total: {scan_stats['total']}', 'white')}", end="")
+
+    print("\nMost recent scanned hosts:")
+    for scan_info in reversed(recent_scans):
+        host_str, status = scan_info
+        color = "green" if status == "Success" else "red"
+        print(colored(f"{host_str} - {status}", color))
+
 
 def show_results():
-    """
-    Display the scan results.
-    """
+    """Display the scan results."""
     results_file = "results/scanned_hosts.txt"
     if not os.path.exists(results_file):
         print("[ERROR] No results found. Perform a scan first.")
@@ -159,10 +139,9 @@ def show_results():
         print("[INFO] Scan Results:\n")
         print(results)
 
+
 def clear_results():
-    """
-    Clear the scan results file.
-    """
+    """Clear the scan results file."""
     results_file = "results/scanned_hosts.txt"
     if os.path.exists(results_file):
         os.remove(results_file)
