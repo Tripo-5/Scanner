@@ -6,38 +6,31 @@ import random
 import time
 import socks
 import socket
+import threading
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from termcolor import colored
 from itertools import cycle
-from threading import Lock
+from collections import deque
 
 # Ensure results directory exists
 os.makedirs("results", exist_ok=True)
 
 # Global lock for thread-safe operations
-lock = Lock()
+lock = threading.Lock()
 
-# Counters for tracking progress
-counter_valid = 0
-counter_dead = 0
-counter_total = 0
-counter_remaining = 0
+# Host scanning statistics
+host_stats = {"total": 0, "scanning": 0, "valid": 0, "dead": 0, "remaining": 0}
 
-# Function to display live counters
-def display_counters():
-    print("\033[H\033[J", end="")  # Clear terminal screen
-    print(f"[STATS] "
-          f"{colored(f'Valid: {counter_valid}', 'green')} | "
-          f"{colored(f'Dead: {counter_dead}', 'red')} | "
-          f"{colored(f'Remaining: {counter_remaining}', 'yellow')} | "
-          f"{colored(f'Total: {counter_total}', 'white')}")
+# Limit for displaying recently tested hosts
+PRINT_LIMIT = 20
 
-# Load hosts from file
+# Store the most recent hosts tested
+recent_hosts = deque(maxlen=PRINT_LIMIT)
+
+
 def load_hosts():
-    """
-    Load hosts from a file into the global_hosts list.
-    """
+    """Load hosts from a file into the global_hosts list."""
     global global_hosts
     file_path = input("Enter the path to the hosts file: ")
     if not os.path.exists(file_path):
@@ -49,159 +42,87 @@ def load_hosts():
     print(f"[INFO] Loaded {len(global_hosts)} hosts from {file_path}.")
     return global_hosts
 
-# Load IP ranges from CSV files
-def load_ip_ranges():
-    """
-    Load IP ranges from CSV files within the ip_ranges directory.
-    Convert ranges into individual IPs and save them for processing.
-    """
-    global global_hosts
-    base_dir = "ip_ranges"
-    
-    if not os.path.exists(base_dir):
-        print(f"[ERROR] Base directory {base_dir} does not exist.")
+
+def test_hosts(hosts, proxies):
+    """Test multiple hosts for connectivity using multithreading."""
+    if not hosts:
+        print("[ERROR] No hosts to test. Load hosts first.")
         return []
 
-    # List country folders
-    countries = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
-    if not countries:
-        print(f"[INFO] No country directories found in {base_dir}.")
+    if not proxies:
+        print("[ERROR] No proxies available. Load tested proxies first.")
         return []
 
-    print("[INFO] Available countries:")
-    for i, country in enumerate(countries, start=1):
-        print(f"{i}. {country}")
+    global host_stats
+    host_stats.update({"total": len(hosts), "scanning": len(hosts), "valid": 0, "dead": 0, "remaining": len(hosts)})
+
+    print("[INFO] Host scanning started...")
+
+    def background_scanning():
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            proxy_cycle = cycle(proxies)
+            futures = {executor.submit(test_single_host, host, next(proxy_cycle)): host for host in hosts}
+
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Hosts"):
+                host = futures[future]
+                result = future.result()
+
+                if result:
+                    host_stats["valid"] += 1
+                    recent_hosts.append([host, "Valid"])
+                else:
+                    host_stats["dead"] += 1
+                    recent_hosts.append([host, "Dead"])
+
+                host_stats["remaining"] -= 1
+
+                # Update status dynamically
+                print_status()
+
+    # Start host scanning in the background
+    scanning_thread = threading.Thread(target=background_scanning, daemon=True)
+    scanning_thread.start()
+
+
+def print_status():
+    """Update the terminal display dynamically with counters."""
+    print(f"\r{colored(f'Valid Hosts: {host_stats['valid']}', 'green')} | "
+          f"{colored(f'Dead Hosts: {host_stats['dead']}', 'red')} | "
+          f"{colored(f'Remaining: {host_stats['remaining']}', 'yellow')} | "
+          f"{colored(f'Total: {host_stats['total']}', 'white')}", end="")
+
+    print("\nMost recent hosts tested:")
+    for host_info in reversed(recent_hosts):
+        host_str, status = host_info
+        color = "green" if status == "Valid" else "red"
+        print(colored(f"{host_str} - {status}", color))
+
+
+def test_single_host(host, proxy=None):
+    """Test a single host's connectivity via a SOCKS5 proxy."""
+    while pause_event.is_set():
+        time.sleep(0.5)
+
+    if stop_event.is_set():
+        print("[INFO] Stopping host tests.")
+        return False
 
     try:
-        country_choice = int(input("Select a country by number: ")) - 1
-        if country_choice < 0 or country_choice >= len(countries):
-            print("[ERROR] Invalid selection.")
-            return []
-    except ValueError:
-        print("[ERROR] Invalid input. Please enter a number.")
-        return []
+        # Ensure proxy format is correct
+        if isinstance(proxy, list):
+            proxy = ":".join(proxy)
 
-    selected_country = countries[country_choice]
-    country_dir = os.path.join(base_dir, selected_country)
+        proxy_host, proxy_port = proxy.split(":")
+        proxy_port = int(proxy_port)
 
-    # List CSV files in selected country folder
-    csv_files = [f for f in os.listdir(country_dir) if f.endswith(".csv")]
-    if not csv_files:
-        print(f"[INFO] No CSV files found in {country_dir}.")
-        return []
+        if not (0 <= proxy_port <= 65535):
+            print(colored(f"[ERROR] Invalid proxy port: {proxy_port}", "red"))
+            return False
 
-    print(f"[INFO] Available IP range files in {selected_country}:")
-    for i, csv_file in enumerate(csv_files, start=1):
-        print(f"{i}. {csv_file}")
-
-    try:
-        file_choice = int(input("Select a file by number: ")) - 1
-        if file_choice < 0 or file_choice >= len(csv_files):
-            print("[ERROR] Invalid selection.")
-            return []
-    except ValueError:
-        print("[ERROR] Invalid input. Please enter a number.")
-        return []
-
-    selected_file = csv_files[file_choice]
-    file_path = os.path.join(country_dir, selected_file)
-
-    # Prepare output directory for calculated IPs
-    ip_addresses_dir = os.path.join(country_dir, "ip_addresses")
-    os.makedirs(ip_addresses_dir, exist_ok=True)
-
-    output_file = os.path.join(ip_addresses_dir, f"{selected_country}_IPV4List.txt")
-
-    # Process the selected file
-    all_ips = []
-    with open(file_path, "r") as file:
-        reader = csv.reader(file)
-        for line in reader:
-            if len(line) != 2:
-                continue
-            try:
-                start_ip = ipaddress.IPv4Address(line[0].strip())
-                end_ip = ipaddress.IPv4Address(line[1].strip())
-
-                if start_ip > end_ip:
-                    continue
-
-                current_ip = start_ip
-                while current_ip <= end_ip:
-                    all_ips.append(str(current_ip))
-                    current_ip += 1
-
-            except ValueError:
-                continue
-
-    random.shuffle(all_ips)
-    global_hosts = all_ips
-
-    # Save IPs to file
-    with open(output_file, "w") as output:
-        for ip in global_hosts:
-            output.write(ip + "\n")
-
-    print(f"[INFO] Loaded {len(global_hosts)} IPs from {file_path} and saved to {output_file}.")
-    return global_hosts
-
-# Load previously tested hosts
-def load_previous_hosts():
-    """
-    Load previously tested live hosts from results/live_hosts.txt.
-    """
-    global global_hosts
-    live_hosts_file = "results/live_hosts.txt"
-
-    if not os.path.exists(live_hosts_file):
-        print("[ERROR] No previously tested live hosts found.")
-        return []
-
-    with open(live_hosts_file, "r") as file:
-        global_hosts = [line.strip() for line in file if line.strip()]
-
-    print(f"[INFO] Loaded {len(global_hosts)} previously tested live hosts.")
-    return global_hosts
-
-# Test individual host connectivity using SOCKS5 proxy
-# Fix: Correctly apply proxies & validate format
-def test_single_host(host, proxy=None, min_delay=1, max_delay=3):
-    """
-    Test a single host's connectivity via a SOCKS5 proxy with random delay.
-
-    :param host: Target host to test
-    :param proxy: SOCKS5 proxy to use (IP:PORT)
-    :param min_delay: Minimum delay between scans (seconds)
-    :param max_delay: Maximum delay between scans (seconds)
-    """
-    global counter_valid, counter_dead, counter_remaining
-
-    try:
         sock = socks.socksocket()
-        
-        # Validate and set proxy
-        if proxy:
-            if isinstance(proxy, list):  
-                proxy = ":".join(proxy)  # Convert ["IP", "PORT"] to "IP:PORT"
-            
-            proxy_host, proxy_port = proxy.split(":")
-            proxy_port = int(proxy_port)
-
-            if not (0 <= proxy_port <= 65535):
-                print(colored(f"[ERROR] Invalid proxy port: {proxy_port}", "red"))
-                return
-
-            sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
-
-        while pause_event.is_set():
-            time.sleep(0.5)
-
-        if stop_event.is_set():
-            print("[INFO] Scanning stopped.")
-            return
-
+        sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
         sock.settimeout(5)
-        sock.connect((host, 22))  # Try connecting to SSH port
+        sock.connect((host, 22))  # Test SSH port connection
         sock.close()
 
         with lock:
@@ -209,70 +130,37 @@ def test_single_host(host, proxy=None, min_delay=1, max_delay=3):
             with open("results/live_hosts.txt", "a") as file:
                 file.write(f"{host}\n")
 
-            counter_valid += 1
-            counter_remaining -= 1
-            display_counters()
-            print(colored(f"[VALID] {host} (via {proxy})", "green"))
+        return True
 
-    except (socket.timeout, socks.ProxyError, socks.GeneralProxyError) as e:
-        with lock:
-            counter_dead += 1
-            counter_remaining -= 1
-            display_counters()
-        print(colored(f"[DEAD] {host} (via {proxy}) - {e}", "red"))
+    except (socket.timeout, socks.ProxyError, socks.GeneralProxyError):
+        return False
 
-    except Exception as e:
-        print(colored(f"[ERROR] Unexpected error testing {host}: {e}", "red"))
 
-    finally:
-        # Introduce random delay between scans
-        delay = random.uniform(min_delay, max_delay)
-        time.sleep(delay)
-# Multithreaded host testing
-def test_hosts(hosts, proxies):
-    """
-    Test multiple hosts for connectivity using multithreading and SOCKS proxies.
+def save_live_hosts():
+    """Save the successfully tested live hosts to file."""
+    with open("results/live_hosts.txt", "w") as file:
+        for host in global_live_hosts:
+            file.write(f"{host}\n")
+    print(f"[INFO] Live hosts saved to results/live_hosts.txt.")
 
-    :param hosts: List of hosts to test
-    :param proxies: List of SOCKS5 proxies
-    :return: List of live hosts
-    """
-    global global_live_hosts, counter_valid, counter_dead, counter_remaining, counter_total
-    global_live_hosts = []
 
-    if not hosts:
-        print("[ERROR] No hosts to test.")
+def load_live_hosts():
+    """Load previously tested live hosts from results/live_hosts.txt."""
+    global global_live_hosts
+
+    if not os.path.exists("results/live_hosts.txt"):
+        print("[ERROR] No previously tested live hosts found.")
         return []
 
-    if not proxies:
-        print("[ERROR] No proxies available for testing.")
-        return []
+    with open("results/live_hosts.txt", "r") as file:
+        global_live_hosts = [line.strip() for line in file if line.strip()]
 
-    counter_valid = 0
-    counter_dead = 0
-    counter_total = len(hosts)
-    counter_remaining = len(hosts)
-
-    # Clear previous live hosts file
-    with open("results/live_hosts.txt", "w"):
-        pass
-
-    display_counters()
-
-    proxy_cycle = cycle(proxies)  # Cycle through proxies correctly
-
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = {executor.submit(test_single_host, host, next(proxy_cycle)): host for host in hosts}
-
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Hosts"):
-            if stop_event.is_set():
-                print("[INFO] Stopping scanning...")
-                break
-
-            while pause_event.is_set():
-                time.sleep(0.5)
-
-            display_counters()
-
-    print(f"[INFO] Found {len(global_live_hosts)} live hosts.")
+    print(f"[INFO] Loaded {len(global_live_hosts)} previously tested live hosts.")
     return global_live_hosts
+
+
+def clear_live_hosts():
+    """Clear the list of previously tested live hosts."""
+    open("results/live_hosts.txt", "w").close()
+    global_live_hosts.clear()
+    print("[INFO] Cleared all previously tested live hosts.")
