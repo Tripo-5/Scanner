@@ -88,6 +88,9 @@ def test_proxies(proxies):
     valid_proxies = 0
     invalid_proxies = 0
 
+    # Deque to store the most recent proxies tested
+    recent_proxies = deque(maxlen=10)  # Limit the displayed recent proxies to 10
+
     # Use ThreadPoolExecutor for concurrent proxy testing
     with ThreadPoolExecutor(max_workers=50) as executor:
         futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
@@ -122,12 +125,6 @@ def test_proxies(proxies):
 
     return valid_proxies, invalid_proxies
 
-
-# Limit for the number of proxies printed in terminal
-PRINT_LIMIT = 10
-
-# Deque to store the most recent proxies tested
-recent_proxies = deque(maxlen=PRINT_LIMIT)
 
 def test_single_proxy(proxy):
     """
