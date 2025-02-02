@@ -86,10 +86,12 @@ def test_hosts(hosts, proxies):
 
 def print_status():
     """Update the terminal display dynamically with counters."""
-    print(f"\r{colored(f'Valid Hosts: {host_stats['valid']}', 'green')} | "
-          f"{colored(f'Dead Hosts: {host_stats['dead']}', 'red')} | "
-          f"{colored(f'Remaining: {host_stats['remaining']}', 'yellow')} | "
-          f"{colored(f'Total: {host_stats['total']}', 'white')}", end="")
+    print("\r{} | {} | {} | {}".format(
+        colored(f"Valid Hosts: {host_stats['valid']}", "green"),
+        colored(f"Dead Hosts: {host_stats['dead']}", "red"),
+        colored(f"Remaining: {host_stats['remaining']}", "yellow"),
+        colored(f"Total: {host_stats['total']}", "white")
+    ), end="")
 
     print("\nMost recent hosts tested:")
     for host_info in reversed(recent_hosts):
