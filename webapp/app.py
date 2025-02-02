@@ -26,5 +26,18 @@ def start_webapp():
     print("[INFO] Starting Flask Web Server...")
     app.run(host=web_config["host"], port=web_config["port"], debug=True)
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/stats")
+def stats():
+    return jsonify({
+        "proxies": proxy_stats,
+        "hosts": host_stats,
+        "bruteforce": brute_stats,
+        "tasks": len(active_tasks)
+    })    
+
 if __name__ == "__main__":
     start_webapp()
