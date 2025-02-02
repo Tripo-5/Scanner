@@ -1,13 +1,18 @@
+import sys
+import os
+
+# Ensure Python can find modules from the root directory
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(BASE_DIR)
+
+from modules.proxy_handler import test_proxies, load_proxies  # Now it should work!
+from globals import web_config, active_tasks, proxy_stats, host_stats, brute_stats
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import threading
 import os
 import sqlite3
-from modules.proxy_handler import test_proxies, load_proxies
 from modules.host_handler import test_hosts, load_hosts
 from modules.bruteforce import bruteforce_ssh
-import sys
-import os
-from globals import web_config, active_tasks, proxy_stats, host_stats, brute_stats
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Change this!
