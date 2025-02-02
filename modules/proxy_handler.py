@@ -29,7 +29,7 @@ for file_path in [unchecked_proxies_file, checked_proxies_file, proxy_sources_fi
 proxy_stats = {"total": 0, "testing": 0, "valid": 0, "dead": 0, "remaining": 0}
 
 # Limit for the number of proxies printed in terminal
-PRINT_LIMIT = 20
+PRINT_LIMIT = 50
 
 # Deque to store the most recent proxies tested
 recent_proxies = deque(maxlen=PRINT_LIMIT)
