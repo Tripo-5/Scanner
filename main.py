@@ -56,6 +56,12 @@ brute_stats = {"running": 0, "success": 0, "failed": 0}
 
 # Flag to return to menu from any scan
 return_to_menu = threading.Event()
+# Web Server Configuration
+web_config = {
+    "enabled": False,  # Initially disabled
+    "host": "0.0.0.0",
+    "port": 5000
+}
 
 
 def stop_all_background_tasks():
@@ -198,14 +204,23 @@ def main_menu():
             configure_settings()
         elif choice == "25":
             stop_all_background_tasks()
-        elif choice == "26":  # New Option to Enable Web Server
+        elif choice == "26":  # Start/Stop Web Server
             if not web_config["enabled"]:
                 web_config["enabled"] = True
                 print("[INFO] Starting Web Interface...")
-                os.system("python3 webapp/app.py &")  # Run Flask in background
+
+                # Start the Flask Web Server in the background
+                os.system("nohup python3 webapp/app.py > web.log 2>&1 &")
+                print("[INFO] Web Server started at http://localhost:5000")
+
             else:
-                print("[INFO] Web Interface already running.")    
-            break
+                web_config["enabled"] = False
+                print("[INFO] Stopping Web Interface...")
+
+                # Stop the Flask server (Linux-based)
+                os.system("pkill -f webapp/app.py")
+                print("[INFO] Web Server stopped.")
+
 
 
 
