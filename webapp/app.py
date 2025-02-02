@@ -6,6 +6,11 @@ from globals import web_config, active_tasks, proxy_stats, host_stats, brute_sta
 from modules.proxy_handler import test_proxies, load_proxies
 from modules.host_handler import test_hosts, load_hosts
 from modules.bruteforce import bruteforce_ssh
+import sys
+import os
+sys.path.append(os.path.abspath(".."))  # Add parent directory to path
+
+from globals import web_config, active_tasks, proxy_stats, host_stats, brute_stats
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Change this!
