@@ -95,10 +95,6 @@ def status_text(task_name):
         return colored("[CURRENTLY RUNNING]", "green")
     return ""
 
-
-from termcolor import colored
-import os
-
 def display_statistics():
     """Show system stats dynamically with color enhancements."""
     os.system("clear")  # Clear screen
@@ -122,7 +118,7 @@ def display_statistics():
           f"{colored(brute_stats.get('running', 0), 'white')} Running | "
           f"{colored(brute_stats.get('success', 0), 'green')} Success | "
           f"{colored(brute_stats.get('failed', 0), 'red')} Failed\n")
-
+    
 def main_menu():
     while True:
         print("\033[H\033[J", end="")  # Clear screen
