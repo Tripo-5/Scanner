@@ -25,16 +25,18 @@ for file_path in [unchecked_proxies_file, checked_proxies_file, proxy_sources_fi
         with open(file_path, "w") as f:
             f.write("")
 
+# Proxy testing statistics
+proxy_stats = {"total": 0, "testing": 0, "valid": 0, "dead": 0, "remaining": 0}
+
 # Limit for the number of proxies printed in terminal
-PRINT_LIMIT = 50
+PRINT_LIMIT = 20
 
 # Deque to store the most recent proxies tested
 recent_proxies = deque(maxlen=PRINT_LIMIT)
 
+
 def load_proxies():
-    """
-    Load proxies from the unchecked proxies file into global_scraped_proxies.
-    """
+    """Load proxies from the unchecked proxies file into global_scraped_proxies."""
     global global_scraped_proxies
     if not os.path.exists(unchecked_proxies_file):
         print(f"[ERROR] Unchecked proxies file not found: {unchecked_proxies_file}")
@@ -46,10 +48,9 @@ def load_proxies():
     print(f"[INFO] Loaded {len(global_scraped_proxies)} proxies from {unchecked_proxies_file}.")
     return global_scraped_proxies
 
+
 def scrape_proxies():
-    """
-    Scrape proxies from the sources listed in proxy_sources.txt and save valid IP:Port pairs.
-    """
+    """Scrape proxies from sources and save valid IP:Port pairs."""
     if not os.path.exists(proxy_sources_file):
         print(f"[ERROR] Proxy sources file not found: {proxy_sources_file}")
         return
@@ -82,63 +83,59 @@ def scrape_proxies():
 
     print(f"[INFO] Scraped {len(scraped_proxies)} valid proxies and saved to {unchecked_proxies_file}.")
 
-def test_proxies(proxies):
-    """
-    Test a list of proxies using multithreading.
 
-    :param proxies: List of proxies to test (IP:Port format)
-    """
+def test_proxies(proxies):
+    """Test a list of proxies using multithreading in the background."""
     if not proxies:
         print("[ERROR] No proxies to test. Load proxies first.")
         return []
 
-    print("[INFO] Starting proxy testing...")
+    global proxy_stats
+    proxy_stats.update({"total": len(proxies), "testing": len(proxies), "valid": 0, "dead": 0, "remaining": len(proxies)})
 
-    # Counters for valid and invalid proxies
-    valid_proxies = 0
-    invalid_proxies = 0
+    print("[INFO] Proxy testing started...")
 
-    # Use ThreadPoolExecutor for concurrent proxy testing
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
+    def background_testing():
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
 
-        for future in tqdm(as_completed(futures), desc="Testing Proxies", total=len(futures)):
-            proxy = futures[future]
-            result = future.result()
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Proxies"):
+                proxy = futures[future]
+                result = future.result()
 
-            if result:
-                valid_proxies += 1
-                recent_proxies.append([proxy, "Valid"])
-            else:
-                invalid_proxies += 1
-                recent_proxies.append([proxy, "Dead"])
+                if result:
+                    proxy_stats["valid"] += 1
+                    recent_proxies.append([proxy, "Valid"])
+                else:
+                    proxy_stats["dead"] += 1
+                    recent_proxies.append([proxy, "Dead"])
 
-            # Update the terminal display dynamically with counters
-            print(f"\r{colored(f'Valid Proxies: {valid_proxies}', 'green')} | "
-                  f"{colored(f'Invalid Proxies: {invalid_proxies}', 'red')} | "
-                  f"{colored(f'Remaining: {len(proxies) - (valid_proxies + invalid_proxies)}', 'yellow')} | "
-                  f"{colored(f'Total: {valid_proxies + invalid_proxies}', 'white')}", end="")
+                proxy_stats["remaining"] -= 1
 
-            # Print the most recent proxies tested (up to the PRINT_LIMIT)
-            print("\nMost recent proxies tested:")
-            for proxy_info in reversed(recent_proxies):
-                proxy_str, status = proxy_info
-                color = "green" if status == "Valid" else "red"
-                print(colored(f"{proxy_str} - {status}", color))
+                # Update status dynamically
+                print_status()
 
-    print(f"\n[INFO] Proxy testing complete.")
-    print(f"[INFO] Valid proxies: {valid_proxies}")
-    print(f"[INFO] Invalid proxies: {invalid_proxies}")
+    # Start the proxy test in the background
+    testing_thread = threading.Thread(target=background_testing, daemon=True)
+    testing_thread.start()
 
-    return valid_proxies, invalid_proxies
+
+def print_status():
+    """Update the terminal display dynamically with counters."""
+    print(f"\r{colored(f'Valid Proxies: {proxy_stats['valid']}', 'green')} | "
+          f"{colored(f'Invalid Proxies: {proxy_stats['dead']}', 'red')} | "
+          f"{colored(f'Remaining: {proxy_stats['remaining']}', 'yellow')} | "
+          f"{colored(f'Total: {proxy_stats['total']}', 'white')}", end="")
+
+    print("\nMost recent proxies tested:")
+    for proxy_info in reversed(recent_proxies):
+        proxy_str, status = proxy_info
+        color = "green" if status == "Valid" else "red"
+        print(colored(f"{proxy_str} - {status}", color))
+
 
 def test_single_proxy(proxy):
-    """
-    Test a single proxy by attempting to connect to a test server.
-
-    :param proxy: Proxy in IP:Port format
-    :return: Boolean (True if successful, False if failed)
-    """
+    """Test a single proxy by attempting to connect to a test server."""
     while pause_event.is_set():
         time.sleep(0.5)
 
@@ -147,10 +144,6 @@ def test_single_proxy(proxy):
         return False
 
     try:
-        # Ensure proxy is in the correct format (IP:PORT)
-        if isinstance(proxy, list):
-            proxy = ":".join(proxy)
-
         proxy_host, proxy_port = proxy.split(":")
         proxy_port = int(proxy_port)
 
@@ -158,7 +151,6 @@ def test_single_proxy(proxy):
             print(colored(f"[ERROR] Invalid port {proxy_port} for proxy {proxy_host}:{proxy_port}", "red"))
             return False
 
-        # Set up SOCKS5 proxy using the provided proxy
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
         sock.settimeout(5)
@@ -166,22 +158,20 @@ def test_single_proxy(proxy):
         sock.close()
         return True
 
-    except (socket.error, socks.ProxyError) as e:
+    except (socket.error, socks.ProxyError):
         return False
 
+
 def save_working_proxies():
-    """
-    Save the working proxies to the checked proxies file.
-    """
+    """Save the working proxies to the checked proxies file."""
     with open(checked_proxies_file, "w") as file:
         for proxy in global_tested_proxies:
             file.write(f"{proxy}\n")
     print(f"[INFO] Working proxies saved to {checked_proxies_file}.")
 
+
 def load_checked_proxies():
-    """
-    Load previously tested proxies from checked_proxies.txt.
-    """
+    """Load previously tested proxies from checked_proxies.txt."""
     global global_tested_proxies
 
     if not os.path.exists(checked_proxies_file):
@@ -194,20 +184,18 @@ def load_checked_proxies():
     print(f"[INFO] Loaded {len(global_tested_proxies)} previously tested proxies.")
     return global_tested_proxies
 
+
 def clear_proxies():
-    """
-    Clear both unchecked and checked proxy lists.
-    """
+    """Clear both unchecked and checked proxy lists."""
     open(unchecked_proxies_file, "w").close()
     open(checked_proxies_file, "w").close()
     global_scraped_proxies.clear()
     global_tested_proxies.clear()
     print("[INFO] Proxy lists cleared.")
 
+
 def add_proxy_sources():
-    """
-    Add new proxy sources to the proxy_sources.txt file.
-    """
+    """Add new proxy sources to the proxy_sources.txt file."""
     print("[INFO] Adding new proxy sources. Enter URLs (one per line). Type 'done' to finish.")
     new_sources = []
     while True:
