@@ -28,6 +28,23 @@ PRINT_LIMIT = 20
 # Store the most recent hosts tested
 recent_hosts = deque(maxlen=PRINT_LIMIT)
 
+def load_previous_hosts():
+    """
+    Load previously tested live hosts from results/live_hosts.txt.
+    """
+    global global_hosts
+    live_hosts_file = "results/live_hosts.txt"
+
+    if not os.path.exists(live_hosts_file):
+        print("[ERROR] No previously tested live hosts found.")
+        return []
+
+    with open(live_hosts_file, "r") as file:
+        global_hosts = [line.strip() for line in file if line.strip()]
+
+    print(f"[INFO] Loaded {len(global_hosts)} previously tested live hosts.")
+    return global_hosts
+
 def load_ip_ranges():
     """
     Load IP ranges from CSV files within the ip_ranges directory.
