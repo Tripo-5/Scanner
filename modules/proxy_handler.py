@@ -84,16 +84,43 @@ def scrape_proxies():
     print(f"[INFO] Scraped {len(scraped_proxies)} valid proxies and saved to {unchecked_proxies_file}.")
 
 
+# Test Proxies (Live Stats Only - No Detailed Output)
 def test_proxies(proxies):
-    """Test a list of proxies using multithreading in the background."""
+    """
+    Test a list of proxies using multithreading while updating live stats.
+    No direct printout of proxy success/failure, only stats update.
+    """
+
     if not proxies:
         print("[ERROR] No proxies to test. Load proxies first.")
         return []
 
-    global proxy_stats
-    proxy_stats.update({"total": len(proxies), "testing": len(proxies), "valid": 0, "dead": 0, "remaining": len(proxies)})
+    print("[INFO] Proxy testing started in background. Stats will update in menu.")
 
-    print("[INFO] Proxy testing started...")
+    # Initialize proxy stats
+    proxy_stats["total"] = len(proxies)
+    proxy_stats["valid"] = 0
+    proxy_stats["dead"] = 0
+    proxy_stats["remaining"] = len(proxies)
+
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
+
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Testing Proxies", leave=False):
+            proxy = futures[future]
+            result = future.result()
+
+            # Update proxy stats instead of printing results
+            if result:
+                proxy_stats["valid"] += 1
+            else:
+                proxy_stats["dead"] += 1
+            
+            # Update remaining proxies count
+            update_proxy_stats()
+
+    print(f"\n[INFO] Proxy testing complete. Valid: {proxy_stats['valid']} | Dead: {proxy_stats['dead']}")
+    return proxy_stats["valid"], proxy_stats["dead"]
 
     def background_testing():
         with ThreadPoolExecutor(max_workers=50) as executor:
@@ -137,23 +164,31 @@ def print_status():
         print(colored(f"{proxy_str} - {status}", color))
 
 
+# Test Single Proxy (No Print Output)
 def test_single_proxy(proxy):
-    """Test a single proxy by attempting to connect to a test server."""
+    """
+    Test a single proxy by attempting to connect to a test server.
+    Updates stats but does NOT print individual results.
+    """
+
     while pause_event.is_set():
         time.sleep(0.5)
 
     if stop_event.is_set():
-        print("[INFO] Stopping proxy tests.")
         return False
 
     try:
+        # Ensure proxy is in the correct format
+        if isinstance(proxy, list):
+            proxy = ":".join(proxy)
+
         proxy_host, proxy_port = proxy.split(":")
         proxy_port = int(proxy_port)
 
         if not (0 <= proxy_port <= 65535):
-            print(colored(f"[ERROR] Invalid port {proxy_port} for proxy {proxy_host}:{proxy_port}", "red"))
             return False
 
+        # Set up SOCKS5 proxy
         sock = socks.socksocket()
         sock.set_proxy(socks.SOCKS5, proxy_host, proxy_port)
         sock.settimeout(5)
@@ -163,7 +198,6 @@ def test_single_proxy(proxy):
 
     except (socket.error, socks.ProxyError):
         return False
-
 
 def save_working_proxies():
     """Save the working proxies to the checked proxies file."""
