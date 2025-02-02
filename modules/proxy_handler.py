@@ -78,9 +78,7 @@ def scrape_proxies():
 
 
 def test_proxies(proxies):
-    """
-    Test a list of proxies using multithreading and update statistics in real time.
-    """
+    """Test a list of proxies using multithreading and update statistics in real time."""
     global proxy_stats
 
     if not proxies:
@@ -93,7 +91,7 @@ def test_proxies(proxies):
     proxy_stats["remaining"] = len(proxies)
 
     print("[INFO] Starting proxy testing...")
-    display_statistics()  # Show stats before testing starts
+    display_statistics()  # ✅ Show stats before testing starts
 
     with ThreadPoolExecutor(max_workers=30) as executor:
         futures = {executor.submit(test_single_proxy, proxy): proxy for proxy in proxies}
@@ -127,6 +125,7 @@ def test_proxies(proxies):
     print(f"\n[INFO] Proxy testing complete.")
     print(f"[INFO] Valid proxies: {proxy_stats['valid']}")
     print(f"[INFO] Dead proxies: {proxy_stats['dead']}")
+
 
     
     def update_status():
