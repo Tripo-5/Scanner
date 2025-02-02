@@ -163,9 +163,6 @@ def test_single_proxy(proxy):
         sock.close()
 
         return True
-    except (ValueError, socket.error, socks.ProxyError) as e:
-        print(colored(f"[ERROR] Failed to connect to proxy {proxy_host}:{proxy_port} - {e}", "red"))
-        return False
     except Exception as e:
         print(colored(f"[ERROR] Unexpected error testing proxy {proxy_host}:{proxy_port} - {e}", "red"))
         return False
