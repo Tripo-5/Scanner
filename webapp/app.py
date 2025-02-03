@@ -40,7 +40,7 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
 # --- 🔹 Fix `before_first_request` for Admin User Creation ---
-@app.before_first_request
+@app.before_request
 def create_admin_user():
     """Create an admin user if one doesn't exist."""
     with app.app_context():
