@@ -31,6 +31,25 @@ function startHostScan() {
     fetch('/hosts/scan', { method: 'POST' })
         .then(() => alert('Host scanning started!'));
 }
+function fetchLogs(category) {
+    fetch(`/logs/${category}`)
+        .then(response => response.json())
+        .then(data => {
+            let logDiv = document.getElementById(`${category}_logs`);
+            logDiv.innerHTML = data.logs.map(log => `<p>${log}</p>`).join("");
+        })
+        .catch(error => console.error(`Error fetching logs for ${category}:`, error));
+}
+
+// Auto-update logs every 3 seconds
+setInterval(() => {
+    fetchLogs("proxy");
+    fetchLogs("host");
+    fetchLogs("bruteforce");
+    fetchLogs("shell");
+    fetchLogs("c2");
+    fetchLogs("tor");
+}, 3000);
 
 // Start brute-force attack
 function startBruteForce() {
