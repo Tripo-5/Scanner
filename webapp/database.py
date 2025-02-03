@@ -6,7 +6,7 @@ db = SQLAlchemy()
 DB_CONFIG = {
     "host": "localhost",
     "user": "scanner_user",  # Ensure this is your MySQL username
-    "password": "yourpassword",  # Ensure this matches the password set up in MySQL
+    "password": "your_password",  # Ensure this matches the password set up in MySQL
     "database": "scanner_db"
 }
 
