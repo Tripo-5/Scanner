@@ -17,7 +17,7 @@ from modules.config_handler import configure_settings
 from modules.command_control import start_listener, stop_listeners
 from modules.shell_generator import generate_msfvenom_shell
 from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
-
+import threading
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -29,6 +29,24 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://scanner_user:your_passw
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+task_logs = {
+    "proxy": [],
+    "host": [],
+    "bruteforce": [],
+    "shell": [],
+    "c2": [],
+    "tor": [],
+}
+
+log_lock = threading.Lock()
+
+def add_log(category, message):
+    """Add a log message to a specific category."""
+    with log_lock:
+        if category in task_logs:
+            task_logs[category].append(message)
+            if len(task_logs[category]) > 10:  # Keep only last 10 logs
+                task_logs[category].pop(0)
 # --- 🔹 User Model ---
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -106,11 +124,18 @@ def stats():
         "bruteforce": brute_stats,
         "tasks": len(active_tasks)
     })   
-
+@app.route("/logs/<category>", methods=["GET"])
+def get_logs(category):
+    """Return the last 10 log messages for a category."""
+    with log_lock:
+        logs = task_logs.get(category, ["[INFO] No logs available."])
+    return jsonify({"logs": logs})
 # --- 🔹 PROXY MANAGEMENT ---
 @app.route("/proxies/scrape", methods=["POST"])
 def scrape_proxies_route():
+    add_log("proxy", "[INFO] Scraping proxies started...")
     scrape_proxies()
+    add_log("proxy", "[SUCCESS] Scraping complete!")
     return jsonify({"message": "Proxies Scraped!"}), 200
 
 @app.route("/proxies/load", methods=["POST"])
@@ -120,7 +145,9 @@ def load_proxies_route():
 
 @app.route("/proxies/test", methods=["POST"])
 def test_proxies_route():
-    test_proxies(load_proxies())
+    add_log("proxy", "[INFO] Proxy testing started...")
+    test_proxies(load_proxies())  # Make sure it has arguments
+    add_log("proxy", "[SUCCESS] Proxy testing complete!")
     return jsonify({"message": "Proxy Testing Started!"}), 200
 
 @app.route("/proxies/save", methods=["POST"])
