@@ -2,6 +2,8 @@ function updateStats() {
     fetch('/stats')
         .then(response => response.json())
         .then(data => {
+            console.log("Stats received:", data); // Debugging log
+
             document.getElementById("total_proxies").innerText = data.proxies.total;
             document.getElementById("valid_proxies").innerText = data.proxies.valid;
             document.getElementById("dead_proxies").innerText = data.proxies.dead;
@@ -11,7 +13,8 @@ function updateStats() {
             document.getElementById("brute_running").innerText = data.bruteforce.running;
             document.getElementById("brute_success").innerText = data.bruteforce.success;
             document.getElementById("brute_failed").innerText = data.bruteforce.failed;
-        });
+        })
+        .catch(error => console.error("Error fetching stats:", error));
 }
 
 // Auto-refresh every 5 seconds
