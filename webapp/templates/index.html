@@ -81,6 +81,7 @@
         <button onclick="sendRequest('/proxies/test', 'Proxy Testing Started!')">Test Proxies</button>
         <button onclick="sendRequest('/proxies/save', 'Valid Proxies Saved!')">Save Proxies</button>
         <button onclick="sendRequest('/proxies/load-checked', 'Checked Proxies Loaded!')">Load Checked Proxies</button>
+        <div class="console-output" id="proxy_logs">Loading logs...</div>
     </div>
 
     <!-- Host Management -->
@@ -89,6 +90,7 @@
         <button onclick="sendRequest('/hosts/load', 'Hosts Loaded!')">Load Hosts</button>
         <button onclick="sendRequest('/hosts/test', 'Host Testing Started!')">Test Hosts</button>
         <button onclick="sendRequest('/hosts/scan', 'Host Scanning Started!')">Scan Hosts</button>
+        <div class="console-output" id="host_logs">Loading logs...</div>
     </div>
 
     <!-- Brute-force -->
@@ -96,12 +98,14 @@
         <h2>🔑 Brute-force</h2>
         <button onclick="sendRequest('/bruteforce/start', 'Brute-force Started!')">Start Brute-force</button>
         <button onclick="sendRequest('/bruteforce/stop', 'Brute-force Stopped!')">Stop Brute-force</button>
+        <div class="console-output" id="bruteforce_logs">Loading logs...</div>
     </div>
 
     <!-- Shell Generator -->
     <div class="section">
         <h2>💀 Shell Generator</h2>
         <button onclick="sendRequest('/shell/generate', 'Payload Generated!')">Generate Reverse Shell</button>
+        <div class="console-output" id="shell_logs">Loading logs...</div>
     </div>
 
     <!-- Command & Control -->
