@@ -4,7 +4,7 @@ import sys
 # Ensure the root directory is in the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from flask import Flask, render_template, request, redirect, session, jsonify
+from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from database import db  # Ensure database connection works
 from globals import web_config, active_tasks, proxy_stats, host_stats, brute_stats
 from modules.proxy_handler import load_proxies, test_proxies, scrape_proxies
@@ -16,23 +16,77 @@ from flask import Flask, jsonify
 from modules.proxy_handler import (
     scrape_proxies, load_proxies, test_proxies, load_checked_proxies, save_working_proxies
 )
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
 
-# **Define Flask App**
 app = Flask(__name__)
-app.secret_key = "super_secure_secret"
+app.secret_key = os.urandom(24)  # Secret key for session encryption
 
+# Database Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://scanner_user:password@localhost/scanner_db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 # WebApp Configuration
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["DATABASE"] = "scanner_db"
+
+# User Model
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    first_login = db.Column(db.Boolean, default=True)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+@app.before_first_request
+def create_admin_user():
+    """Create an admin user if one doesn't exist."""
+    admin = User.query.filter_by(username="admin").first()
+    if not admin:
+        hashed_pw = generate_password_hash("changeme", method="pbkdf2:sha256")
+        new_admin = User(username="admin", password_hash=hashed_pw, first_login=True)
+        db.session.add(new_admin)
+        db.session.commit()
+        print("[INFO] Default admin user created. Please change your password.")
 
 # **Fix Start WebApp Function**
 def start_webapp():
     print("[INFO] Starting Flask Web Server...")
     app.run(host=web_config["host"], port=web_config["port"], debug=True)
 
-@app.route("/")
-def index():
+# --- LOGIN & AUTHENTICATION ---
+@app.route("/", methods=["GET", "POST"])
+def login():
+    """Login page."""
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.check_password(password):
+            session["user"] = user.username
+            flash("Login successful!", "success")
+            return redirect(url_for("dashboard"))
+        else:
+            flash("Invalid credentials!", "danger")
+
+    return render_template("login.html")
+@app.route("/dashboard")
+def dashboard():
+    """Main dashboard (protected)."""
+    if "user" not in session:
+        return redirect(url_for("login"))
+
     return render_template("index.html")
+@app.route("/logout")
+def logout():
+    """Logout and clear session."""
+    session.pop("user", None)
+    flash("Logged out successfully.", "info")
+    return redirect(url_for("login"))    
 
 @app.route("/stats")
 def stats():
