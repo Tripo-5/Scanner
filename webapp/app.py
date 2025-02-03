@@ -25,7 +25,7 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Secret key for session encryption
 
 # Database Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://scanner_user:password@localhost/scanner_db?charset=utf8mb4'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://scanner_user:your_passwordd@localhost/scanner_db?charset=utf8mb4'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
